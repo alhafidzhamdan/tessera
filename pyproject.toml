@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tessera-bio"
+version = "0.0.1"
+description = "Pair single-nucleus morphology to multi-omic data (spatially, via slide-tags and friends)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Alhafidz Hamdan" }]
+dependencies = [
+    "anndata>=0.10",
+    "zarr>=2.16",
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-image>=0.22",
+    "dask",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+viewer = ["napari[all]>=0.5"]
+dev = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tessera"]

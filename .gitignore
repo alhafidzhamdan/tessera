@@ -1,0 +1,19 @@
+# Data (large; downloaded from SCP / derived) — keep out of git
+data/raw/
+data/processed/
+demo_out/
+*.zarr/
+*.tessera/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# OS
+.DS_Store
