@@ -44,6 +44,7 @@ MORPHOLOGY_FEATURES = [
     "axis_major_length",
     "axis_minor_length",
     "equivalent_diameter_area",
+    "circularity",
 ]
 
 
@@ -66,12 +67,18 @@ def extract_morphology(
     df = df.rename(
         columns={"centroid-0": "centroid_y", "centroid-1": "centroid_x"}
     )
+    # circularity: 4*pi*area / perimeter^2 (1 = perfect circle, ->0 = irregular)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        df["circularity"] = (4 * np.pi * df["area"] / (df["perimeter"] ** 2))
+    df["circularity"] = df["circularity"].replace([np.inf, -np.inf], np.nan).clip(upper=1.0)
     if intensity_image is not None:
         # regionprops has no std; compute it cheaply per label.
         stds = {}
         for lbl in df["label"]:
             stds[lbl] = float(intensity_image[label_image == lbl].std())
         df["intensity_std"] = df["label"].map(stds)
+        # integrated intensity = total signal in the region (area x mean) ~ DNA content
+        df["integrated_intensity"] = (df["area"] * df["intensity_mean"]).round(1)
     return df.set_index("label")
 
 

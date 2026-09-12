@@ -26,14 +26,19 @@ STAIN = "7-AAD"
 
 def main():
     p = PairedData.load(IN)
-    p, img, labels = synthesize_nuclear_image(
-        p, stain=STAIN, px_per_um=1.0, crop_size=64,
-        crops_path="data/processed/_crops_7aad.zarr", seed=1, return_image=True,
+    p, img, mem = synthesize_nuclear_image(
+        p, stain=STAIN, membrane_stain="WGA", px_per_um=1.0, crop_size=64,
+        with_membrane=True, crops_path="data/processed/_crops_7aad.zarr",
+        seed=1, return_image=True,
     )
     print(repr(p))
-    print("morphology features:", p.morphology_features)
-    print("\nMean morphology by cell type (REAL, from 7-AAD image):")
-    print(p.catalogue_table().round(2).to_string(index=False))
+    print("nuclear features:", p.morphology_features)
+    print("cell features:", p.adata.uns.get("cell_features"))
+    print("\nMean nuclear + cell morphology by cell type (REAL, from 7-AAD + WGA):")
+    cols = ["cell_type", "area", "circularity", "integrated_intensity",
+            "cell_area", "nc_ratio"]
+    cols = [c for c in cols if c in p.adata.obs.columns]
+    print(p.adata.obs[cols].groupby("cell_type", observed=True).mean().round(2).to_string())
     p.save(OUT)
     print(f"\nsaved -> {OUT}")
     _figure(p, img, FIG)

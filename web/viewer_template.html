@@ -99,6 +99,7 @@ main{flex:1;min-height:0;position:relative}
 #celltable thead tr.cols th .ar{color:var(--accent);font-size:10px;margin-left:3px}
 #celltable th.g-Location{box-shadow:inset 1px 0 0 var(--border)}
 #celltable th.g-Morphology{box-shadow:inset 1px 0 0 var(--border)}
+#celltable th.g-Cell{box-shadow:inset 1px 0 0 var(--border)}
 #celltable th.g-Multi-omics{box-shadow:inset 1px 0 0 var(--border)}
 #celltable td.num,#celltable th.num{text-align:right;
   font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
@@ -508,21 +509,24 @@ function renderMorph(i){
   const box=document.getElementById('morphbox');
   if(!DATA.atlas)return; // keep the "awaiting image" placeholder
   box.classList.add('filled');
+  const chans=(DATA.crop_channels||[DATA.stain||'stain']).join(' + ');
   box.innerHTML=`<div class="morphrow"><canvas id="cropcv" width="128" height="128"></canvas>
     <div class="mstat" id="mstats"></div></div>
-    <div class="mcap">${(DATA.stain||'stain')} · ${DATA.morph_source==='synthetic'?'synthetic':'imaged'} · registered to x, y</div>`;
+    <div class="mcap">${chans} · ${DATA.morph_source==='synthetic'?'synthetic':'imaged'} · registered to x, y</div>`;
   const cv=document.getElementById('cropcv'),cx=cv.getContext('2d');
+  cx.imageSmoothingEnabled=true;
   if(atlasImg&&atlasImg.complete){const cs=DATA.crop_px,cols=DATA.atlas_cols;
     const sx=(i%cols)*cs,sy=Math.floor(i/cols)*cs;
     cx.clearRect(0,0,128,128);
-    cx.drawImage(atlasImg,sx,sy,cs,cs,0,0,128,128);
-    cx.globalCompositeOperation='multiply';cx.fillStyle='#ff5570';cx.fillRect(0,0,128,128);
-    cx.globalCompositeOperation='source-over';}
-  const feats=[['area','Area','px'],['eccentricity','Eccentricity',''],['solidity','Solidity',''],
-    ['axis_major_length','Major axis','px'],['intensity_mean','Mean signal','']];
+    cx.drawImage(atlasImg,sx,sy,cs,cs,0,0,128,128);}  // atlas already coloured (R=nucleus, G=membrane)
+  const rows=[['area','Area','px','m'],['circularity','Circularity','','m'],
+    ['integrated_intensity','DNA (integ.)','','m'],['nc_ratio','N:C ratio','','c'],
+    ['cell_area','Cell area','px','c']];
   const ms=document.getElementById('mstats');ms.innerHTML='';
-  feats.forEach(([f,lab,u])=>{const v=(DATA.morph&&DATA.morph[f])?DATA.morph[f][i]:null;
-    if(v==null)return;ms.innerHTML+=`<div class="r"><span class="k">${lab}</span><span class="v">${v}${u?' '+u:''}</span></div>`;});
+  rows.forEach(([f,lab,u,src])=>{const store=(src==='c')?DATA.cellmorph:DATA.morph;
+    const v=(store&&store[f])?store[f][i]:null;if(v==null)return;
+    const disp=(f==='integrated_intensity')?Math.round(v).toLocaleString():v;
+    ms.innerHTML+=`<div class="r"><span class="k">${lab}</span><span class="v">${disp}${u?' '+u:''}</span></div>`;});
 }
 
 // ---- table / cell database ----
@@ -544,6 +548,10 @@ const COLS=[
  ...morphCols.map(([f,lab])=>({k:'m_'+f,g:'Morphology',label:lab,num:true,
     get:i=>{const v=mval(f,i);return v==null?null:''+v;},
     sort:i=>{const v=mval(f,i);return v==null?-Infinity:v;}})),
+ ...((DATA.cell_features)||[]).map(f=>({k:'c_'+f,g:'Cell',
+    label:f.replace(/^cell_/,'cell ').replace(/_/g,' '),num:true,
+    get:i=>{const v=(DATA.cellmorph&&DATA.cellmorph[f])?DATA.cellmorph[f][i]:null;return v==null?null:''+v;},
+    sort:i=>{const v=(DATA.cellmorph&&DATA.cellmorph[f])?DATA.cellmorph[f][i]:null;return v==null?-Infinity:v;}})),
  {k:'umis',g:'Multi-omics',label:'RNA UMIs',num:true,get:i=>DATA.umis[i],sort:i=>DATA.umis[i]},
  {k:'genes',g:'Multi-omics',label:'Genes',num:true,get:i=>DATA.genes[i],sort:i=>DATA.genes[i]},
  {k:'peaks',g:'Multi-omics',label:'ATAC peaks',num:true,get:i=>DATA.npk[i],sort:i=>DATA.npk[i]},
