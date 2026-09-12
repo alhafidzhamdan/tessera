@@ -70,8 +70,47 @@ select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .icon-btn:hover{color:var(--ink)}
 .icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+/* ---- tabs / toolbars ---- */
+.tabs button{padding:5px 14px}
+.grow{flex:1 1 auto}
+.tools{display:flex;align-items:center;gap:12px}
+#tsearch{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:8px;padding:6px 11px;width:200px}
+#tsearch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#tcount{white-space:nowrap}
+
 /* ---- main ---- */
-main{flex:1;display:grid;grid-template-columns:1fr 336px;min-height:0}
+main{flex:1;min-height:0;position:relative}
+#view-explore{display:grid;grid-template-columns:1fr 336px;height:100%;min-height:0}
+#view-table{height:100%;overflow:hidden;background:var(--panel);display:flex;flex-direction:column}
+.table-scroll{flex:1;min-height:0;overflow:auto}
+
+/* ---- data grid ---- */
+#celltable{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;color:var(--ink)}
+#celltable th,#celltable td{padding:7px 12px;text-align:left;white-space:nowrap;
+  border-bottom:1px solid var(--border)}
+#celltable thead th{position:sticky;background:var(--panel);z-index:2;
+  font-weight:500;color:var(--ink-2)}
+#celltable thead tr.groups th{top:0;font-family:"IBM Plex Mono",monospace;font-size:10px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--border);padding-top:9px;padding-bottom:5px}
+#celltable thead tr.cols th{top:31px;cursor:pointer;user-select:none}
+#celltable thead tr.cols th:hover{color:var(--ink)}
+#celltable thead tr.cols th .ar{color:var(--accent);font-size:10px;margin-left:3px}
+#celltable th.g-Location{box-shadow:inset 1px 0 0 var(--border)}
+#celltable th.g-Morphology{box-shadow:inset 1px 0 0 var(--border)}
+#celltable th.g-Multi-omics{box-shadow:inset 1px 0 0 var(--border)}
+#celltable td.num,#celltable th.num{text-align:right;
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+#celltable td.idcol{font-family:"IBM Plex Mono",monospace;color:var(--ink-2)}
+#celltable tbody tr{cursor:pointer}
+#celltable tbody tr:hover{background:var(--panel-2)}
+#celltable tbody tr.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.lincell{display:inline-flex;align-items:center;gap:7px}
+.lincell .sw{width:9px;height:9px;border-radius:2px;flex:none}
+.dash{color:var(--muted)}
+.await-note{padding:7px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);
+  background:var(--panel-2)}
 .scope-wrap{position:relative;background:var(--scope);min-width:0}
 canvas{display:block;width:100%;height:100%;cursor:crosshair}
 .overlay{position:absolute;pointer-events:none;color:var(--scope-ink);
@@ -144,8 +183,10 @@ footer{padding:8px 18px;border-top:1px solid var(--border);background:var(--pane
   font-size:11px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
 footer b{color:var(--ink-2);font-weight:500}
 @media (max-width:820px){
-  main{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  #view-explore{grid-template-columns:1fr;grid-template-rows:1fr auto}
   aside{border-left:none;border-top:1px solid var(--border);max-height:44vh}
+  header{gap:10px}
+  .grow{flex-basis:100%;order:5}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -155,21 +196,34 @@ footer b{color:var(--ink-2);font-weight:500}
     <h1>Melanoma Slide-tags Atlas</h1>
     <div class="sub"><b id="ncells">—</b> nuclei · single-nucleus <b>RNA</b> + <b>ATAC</b> + spatial · <span class="mono">SCP2176</span></div>
   </div>
-  <div class="seg" role="group" aria-label="Embedding">
-    <button id="emb-spatial" aria-pressed="true">Spatial</button>
-    <button id="emb-umap" aria-pressed="false">UMAP</button>
+  <div class="seg tabs" role="tablist" aria-label="View">
+    <button id="tab-explore" role="tab" aria-pressed="true">Explore</button>
+    <button id="tab-table" role="tab" aria-pressed="false">Table</button>
   </div>
-  <div class="field">
-    <label for="colorby">Colour by</label>
-    <select id="colorby"></select>
+  <div class="grow"></div>
+  <div id="explore-tools" class="tools">
+    <div class="seg" role="group" aria-label="Embedding">
+      <button id="emb-spatial" aria-pressed="true">Spatial</button>
+      <button id="emb-umap" aria-pressed="false">UMAP</button>
+    </div>
+    <div class="field">
+      <label for="colorby">Colour by</label>
+      <select id="colorby"></select>
+    </div>
+    <button class="icon-btn" id="reset" title="Reset view" aria-label="Reset view">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-1.6 5"/><path d="M20 4v6h-6"/></svg></button>
   </div>
-  <button class="icon-btn" id="reset" title="Reset view" aria-label="Reset view">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-1.6 5"/><path d="M20 4v6h-6"/></svg></button>
+  <div id="table-tools" class="tools" hidden>
+    <input id="tsearch" type="search" placeholder="Search cell ID or type…" aria-label="Search cells">
+    <div class="field"><label for="tlineage">Lineage</label><select id="tlineage"></select></div>
+    <span id="tcount" class="eyebrow"></span>
+  </div>
   <button class="icon-btn" id="theme" title="Toggle theme" aria-label="Toggle theme">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 20.5a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
 </header>
 
 <main>
+  <div id="view-explore">
   <div class="scope-wrap">
     <canvas id="scope"></canvas>
     <div class="legend" id="legend"></div>
@@ -223,6 +277,11 @@ footer b{color:var(--ink-2);font-weight:500}
       </div>
     </section>
   </aside>
+  </div>
+  <div id="view-table">
+    <div id="morph-note" class="await-note" hidden></div>
+    <div class="table-scroll"><table id="celltable"><thead></thead><tbody></tbody></table></div>
+  </div>
 </main>
 
 <footer>
@@ -423,9 +482,105 @@ function select(i){state.sel=i;const ct=cats[DATA.ct[i]];
   draw();}
 function chip(t){const c=document.createElement('span');c.className='chip mono';c.textContent=t;return c;}
 
+// ---- table / cell database ----
+const MORPH_SCHEMA=[['area','Area (px)'],['eccentricity','Eccentricity'],['solidity','Solidity'],
+  ['axis_major_length','Major axis'],['intensity_mean','Intensity']];
+const hasMorph=!!(DATA.morph_features&&DATA.morph_features.length);
+const morphCols=hasMorph?DATA.morph_features.map(f=>[f,f.replace(/_/g,' ')]):MORPH_SCHEMA;
+function mval(f,i){return (DATA.morph&&DATA.morph[f]&&DATA.morph[f][i]!=null)?DATA.morph[f][i]:null;}
+
+const COLS=[
+ {k:'id',g:'Identity',label:'Cell ID',cls:'idcol',get:i=>DATA.ids[i],sort:i=>DATA.ids[i]},
+ {k:'ct',g:'Identity',label:'Cell type',html:i=>{const c=cats[DATA.ct[i]];
+   return `<span class="lincell"><span class="sw" style="background:${SUBTYPE_COLOR[c]}"></span>${c}</span>`;},sort:i=>cats[DATA.ct[i]]},
+ {k:'lin',g:'Identity',label:'Lineage',get:i=>LINEAGE[cats[DATA.ct[i]]],sort:i=>LINEAGE[cats[DATA.ct[i]]]},
+ {k:'x',g:'Location',label:'x (µm)',num:true,get:i=>DATA.sx[i].toFixed(0),sort:i=>DATA.sx[i]},
+ {k:'y',g:'Location',label:'y (µm)',num:true,get:i=>DATA.sy[i].toFixed(0),sort:i=>DATA.sy[i]},
+ {k:'u1',g:'Location',label:'UMAP-1',num:true,get:i=>DATA.ux[i].toFixed(2),sort:i=>DATA.ux[i]},
+ {k:'u2',g:'Location',label:'UMAP-2',num:true,get:i=>DATA.uy[i].toFixed(2),sort:i=>DATA.uy[i]},
+ ...morphCols.map(([f,lab])=>({k:'m_'+f,g:'Morphology',label:lab,num:true,
+    get:i=>{const v=mval(f,i);return v==null?null:''+v;},
+    sort:i=>{const v=mval(f,i);return v==null?-Infinity:v;}})),
+ {k:'umis',g:'Multi-omics',label:'RNA UMIs',num:true,get:i=>DATA.umis[i],sort:i=>DATA.umis[i]},
+ {k:'genes',g:'Multi-omics',label:'Genes',num:true,get:i=>DATA.genes[i],sort:i=>DATA.genes[i]},
+ {k:'peaks',g:'Multi-omics',label:'ATAC peaks',num:true,get:i=>DATA.npk[i],sort:i=>DATA.npk[i]},
+ {k:'top',g:'Multi-omics',label:'Top gene',get:i=>DATA.top[i][0]?DATA.top[i][0][0]:null,
+   sort:i=>DATA.top[i][0]?DATA.top[i][0][0]:''},
+ {k:'tcr',g:'Multi-omics',label:'TCR',
+   get:i=>{const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];
+     return [a?'α':'',b?'β':''].filter(Boolean).join('/')||null;},
+   sort:i=>{const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];return (a?2:0)+(b?1:0);}},
+];
+let sortState={k:null,dir:1},tableBuilt=false;
+const gid=g=>g.replace(/[^A-Za-z]/g,'');
+
+function buildTableHead(){
+  const thead=document.querySelector('#celltable thead');
+  const groups=[];let last=null;
+  COLS.forEach(c=>{if(!last||last.g!==c.g){last={g:c.g,span:1};groups.push(last);}else last.span++;});
+  const gRow='<tr class="groups">'+groups.map(gp=>`<th colspan="${gp.span}" class="g-${gid(gp.g)}">${gp.g}</th>`).join('')+'</tr>';
+  const cRow='<tr class="cols">'+COLS.map(c=>{
+    const ar=sortState.k===c.k?`<span class="ar">${sortState.dir>0?'▲':'▼'}</span>`:'';
+    return `<th class="${c.num?'num ':''}g-${gid(c.g)}" data-k="${c.k}">${c.label}${ar}</th>`;}).join('')+'</tr>';
+  thead.innerHTML=gRow+cRow;
+  thead.querySelectorAll('tr.cols th').forEach(th=>{th.onclick=()=>{
+    const k=th.dataset.k;if(sortState.k===k)sortState.dir*=-1;else{sortState.k=k;sortState.dir=1;}
+    buildTableHead();renderRows();};});
+}
+function currentRows(){
+  const q=(document.getElementById('tsearch').value||'').toLowerCase();
+  const lin=document.getElementById('tlineage').value;
+  const idx=[];
+  for(let i=0;i<n;i++){const c=cats[DATA.ct[i]];
+    if(lin!=='all'&&LINEAGE[c]!==lin)continue;
+    if(q&&!(DATA.ids[i].toLowerCase().includes(q)||c.toLowerCase().includes(q)))continue;
+    idx.push(i);}
+  if(sortState.k){const col=COLS.find(c=>c.k===sortState.k);
+    idx.sort((a,b)=>{const va=col.sort(a),vb=col.sort(b);return (va<vb?-1:va>vb?1:0)*sortState.dir;});}
+  return idx;
+}
+function renderRows(){
+  const idx=currentRows(),tb=document.querySelector('#celltable tbody'),rows=new Array(idx.length);
+  for(let r=0;r<idx.length;r++){const i=idx[r];let tds='';
+    for(const c of COLS){
+      if(c.html){tds+='<td>'+c.html(i)+'</td>';continue;}
+      const v=c.get(i);
+      const disp=(v==null||v==='')?'<span class="dash">—</span>':v;
+      tds+=`<td class="${c.num?'num':''} ${c.cls||''}">${disp}</td>`;}
+    rows[r]=`<tr data-i="${i}"${i===state.sel?' class="sel"':''}>${tds}</tr>`;}
+  tb.innerHTML=rows.join('');
+  document.getElementById('tcount').textContent=idx.length.toLocaleString()+' of '+n.toLocaleString()+' cells';
+}
+function buildTable(){if(!tableBuilt){buildTableHead();tableBuilt=true;}renderRows();}
+
+document.querySelector('#celltable tbody').addEventListener('click',e=>{
+  const tr=e.target.closest('tr[data-i]');if(!tr)return;
+  select(+tr.dataset.i);setTab('explore');});
+document.getElementById('tsearch').addEventListener('input',renderRows);
+
+// tabs
+function setTab(t){const ex=t==='explore';
+  document.getElementById('view-explore').style.display=ex?'grid':'none';
+  document.getElementById('view-table').style.display=ex?'none':'flex';
+  document.getElementById('explore-tools').hidden=!ex;
+  document.getElementById('table-tools').hidden=ex;
+  document.getElementById('tab-explore').setAttribute('aria-pressed',ex);
+  document.getElementById('tab-table').setAttribute('aria-pressed',!ex);
+  if(ex)requestAnimationFrame(resize);else buildTable();}
+document.getElementById('tab-explore').onclick=()=>setTab('explore');
+document.getElementById('tab-table').onclick=()=>setTab('table');
+
+// table controls: lineage filter + morphology note
+{const tl=document.getElementById('tlineage');tl.add(new Option('All lineages','all'));
+ LINEAGE_ORDER.forEach(L=>tl.add(new Option(L,L)));tl.onchange=renderRows;
+ const note=document.getElementById('morph-note');
+ if(!hasMorph){note.hidden=false;
+   note.textContent='Morphology columns are part of the schema; values fill in once a co-registered nuclear image is paired to these nuclei — the join key is each cell’s x, y.';}}
+
 // init
 computeCont();buildLegend();resize();
 // open in a working state: preselect a representative tumour nucleus
 let seed=0;for(let i=0;i<n;i++){if(cats[DATA.ct[i]]==='tumour_1'){seed=i;break;}}
 select(seed);
+setTab('explore');
 </script>

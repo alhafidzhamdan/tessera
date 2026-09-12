@@ -90,6 +90,17 @@ def main(bundle, template, out):
         "tcr_b": tcr("tcr_beta"),
     }
 
+    # morphology columns: schema + values (empty until a nuclear image is paired)
+    morph_features = p.morphology_features
+    morph = {}
+    for f in morph_features:
+        if f in obs:
+            morph[f] = [
+                None if (v != v) else round(float(v), 2) for v in obs[f].to_numpy()
+            ]
+    data["morph_features"] = morph_features
+    data["morph"] = morph
+
     payload = json.dumps(data, separators=(",", ":"))
     html = open(template).read().replace("__TESSERA_DATA__", payload)
     open(out, "w").write(html)
