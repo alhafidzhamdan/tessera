@@ -1,0 +1,431 @@
+<title>Melanoma Slide-tags Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#E9EEEF; --panel:#FFFFFF; --panel-2:#F3F6F7; --border:#D5DEDF;
+  --ink:#14242A; --ink-2:#3A4A50; --muted:#697B81;
+  --accent:#0EA5B7; --accent-ink:#ffffff;
+  --scope:#0B1013; --scope-grid:rgba(255,255,255,.05); --scope-ink:#8FA0A4;
+  --shadow:0 1px 2px rgba(20,36,42,.06),0 8px 24px rgba(20,36,42,.08);
+  --tumour:#F0553B; --tnk:#3E9BFF; --myeloid:#E0A21C; --plasma:#1FB394;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme:dark){
+    --bg:#0C1214; --panel:#121A1D; --panel-2:#0F1618; --border:#25302F;
+    --ink:#E7EEEF; --ink-2:#B9C6C7; --muted:#849699;
+    --accent:#19C2D4; --accent-ink:#04191c;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+    --myeloid:#F2C230; --plasma:#2FD3AA;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1214; --panel:#121A1D; --panel-2:#0F1618; --border:#25302F;
+  --ink:#E7EEEF; --ink-2:#B9C6C7; --muted:#849699;
+  --accent:#19C2D4; --accent-ink:#04191c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+  --myeloid:#F2C230; --plasma:#2FD3AA;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+
+/* ---- header ---- */
+header{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--border);background:var(--panel);
+}
+.brand{display:flex;flex-direction:column;gap:1px;margin-right:auto}
+.brand h1{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.brand .sub{font-size:11.5px;color:var(--muted)}
+.brand .sub b{color:var(--ink-2);font-weight:500}
+
+/* ---- controls ---- */
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--border);
+  border-radius:9px;padding:2px}
+.seg button{all:unset;cursor:pointer;padding:5px 12px;border-radius:7px;font-size:12.5px;
+  color:var(--ink-2);font-weight:500;transition:background .12s,color .12s}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:flex;align-items:center;gap:7px}
+.field label{font-size:11px;color:var(--muted)}
+select{
+  font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:8px;padding:5px 26px 5px 10px;cursor:pointer;
+  appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%23697B81' stroke-width='1.5'/></svg>");
+  background-repeat:no-repeat;background-position:right 9px center}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.icon-btn{all:unset;cursor:pointer;display:grid;place-items:center;width:32px;height:32px;
+  border:1px solid var(--border);border-radius:8px;color:var(--ink-2);background:var(--panel-2)}
+.icon-btn:hover{color:var(--ink)}
+.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- main ---- */
+main{flex:1;display:grid;grid-template-columns:1fr 336px;min-height:0}
+.scope-wrap{position:relative;background:var(--scope);min-width:0}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.overlay{position:absolute;pointer-events:none;color:var(--scope-ink);
+  font-family:"IBM Plex Mono",monospace;font-size:11px}
+#hint{left:14px;bottom:12px;opacity:.75}
+#tooltip{
+  position:absolute;pointer-events:none;z-index:5;display:none;
+  background:rgba(10,16,18,.94);border:1px solid rgba(255,255,255,.14);
+  border-radius:7px;padding:6px 9px;color:#EAF1F1;font-size:12px;
+  font-family:"IBM Plex Mono",monospace;white-space:nowrap;transform:translate(-50%,-140%)}
+#tooltip .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+
+/* legend */
+.legend{position:absolute;left:14px;top:14px;display:flex;flex-direction:column;gap:6px;
+  background:rgba(10,16,18,.72);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;max-width:210px}
+.legend .lg-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:#8FA0A4;margin-bottom:1px}
+.legend .row{display:flex;align-items:center;gap:8px;cursor:pointer;color:#D7DEDE;font-size:12px;
+  padding:1px 2px;border-radius:5px;user-select:none}
+.legend .row:hover{background:rgba(255,255,255,.06)}
+.legend .row.off{opacity:.32}
+.legend .row .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.legend .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#8FA0A4}
+.legend .indent{margin-left:6px}
+#colorbar{position:absolute;left:14px;top:14px;display:none;
+  background:rgba(10,16,18,.72);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;color:#D7DEDE}
+#colorbar .lg-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:#8FA0A4;margin-bottom:6px}
+#cbgrad{width:150px;height:10px;border-radius:3px}
+#cbscale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+  font-size:10px;color:#8FA0A4;margin-top:3px}
+
+/* ---- inspector ---- */
+aside{border-left:1px solid var(--border);background:var(--panel);overflow-y:auto;padding:16px}
+.insp-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cid{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
+  padding:2px 9px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2);color:var(--ink-2)}
+.chip .sw{width:8px;height:8px;border-radius:2px}
+section.blk{margin-top:16px}
+section.blk > .eyebrow{display:block;margin-bottom:8px}
+.joinkey{border:1px solid var(--border);border-radius:10px;padding:11px 12px;background:var(--panel-2)}
+.joinkey .kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.joinkey .kv + .kv{margin-top:5px}
+.joinkey .k{font-size:11.5px;color:var(--muted)}
+.joinkey .v{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink)}
+.joinkey .tag{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);
+  border-radius:5px;padding:1px 5px;opacity:.9}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{border:1px solid var(--border);border-radius:10px;padding:9px 10px;background:var(--panel-2)}
+.stat .num{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500;color:var(--ink);line-height:1.1}
+.stat .lab{font-size:10.5px;color:var(--muted);margin-top:3px}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:74px 1fr auto;align-items:center;gap:8px}
+.bar .g{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:9px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.bar .fill{height:100%;border-radius:3px}
+.bar .val{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);min-width:22px;text-align:right}
+.tcr{display:flex;gap:7px;flex-wrap:wrap}
+.tcr .none{color:var(--muted);font-size:12px}
+.morph{border:1px dashed var(--border);border-radius:12px;padding:18px 14px;text-align:center;background:var(--panel-2)}
+.morph .ic{width:34px;height:34px;margin:0 auto 8px;color:var(--muted)}
+.morph .t{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.morph .d{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+footer{padding:8px 18px;border-top:1px solid var(--border);background:var(--panel);
+  font-size:11px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+footer b{color:var(--ink-2);font-weight:500}
+@media (max-width:820px){
+  main{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  aside{border-left:none;border-top:1px solid var(--border);max-height:44vh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <div class="brand">
+    <h1>Melanoma Slide-tags Atlas</h1>
+    <div class="sub"><b id="ncells">—</b> nuclei · single-nucleus <b>RNA</b> + <b>ATAC</b> + spatial · <span class="mono">SCP2176</span></div>
+  </div>
+  <div class="seg" role="group" aria-label="Embedding">
+    <button id="emb-spatial" aria-pressed="true">Spatial</button>
+    <button id="emb-umap" aria-pressed="false">UMAP</button>
+  </div>
+  <div class="field">
+    <label for="colorby">Colour by</label>
+    <select id="colorby"></select>
+  </div>
+  <button class="icon-btn" id="reset" title="Reset view" aria-label="Reset view">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-1.6 5"/><path d="M20 4v6h-6"/></svg></button>
+  <button class="icon-btn" id="theme" title="Toggle theme" aria-label="Toggle theme">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 20.5a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
+</header>
+
+<main>
+  <div class="scope-wrap">
+    <canvas id="scope"></canvas>
+    <div class="legend" id="legend"></div>
+    <div id="colorbar"><div class="lg-title" id="cbtitle">value</div><div id="cbgrad"></div>
+      <div id="cbscale"><span id="cbmin">0</span><span id="cbmax">1</span></div></div>
+    <div class="overlay mono" id="hint">scroll to zoom · drag to pan · click a nucleus</div>
+    <div id="tooltip"></div>
+  </div>
+
+  <aside id="inspector">
+    <div class="insp-head">
+      <span class="cid" id="i-cid">—</span>
+      <span class="chip" id="i-sub"><span class="sw"></span><span>—</span></span>
+    </div>
+
+    <section class="blk">
+      <span class="eyebrow">Location · the join key to imaging</span>
+      <div class="joinkey">
+        <div class="kv"><span class="k">tissue x, y</span><span class="v" id="i-xy">—</span></div>
+        <div class="kv"><span class="k">UMAP</span><span class="v" id="i-umap">—</span></div>
+        <div class="kv"><span class="k" style="align-self:center">morphology pairs here</span><span class="tag">x,y → image</span></div>
+      </div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">Multi-omic depth</span>
+      <div class="stats">
+        <div class="stat"><div class="num" id="i-umis">—</div><div class="lab">RNA UMIs</div></div>
+        <div class="stat"><div class="num" id="i-genes">—</div><div class="lab">genes</div></div>
+        <div class="stat"><div class="num" id="i-peaks">—</div><div class="lab">ATAC peaks</div></div>
+      </div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">Top expressed genes</span>
+      <div class="bars" id="i-bars"></div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">TCR clonotype</span>
+      <div class="tcr" id="i-tcr"></div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">Morphology</span>
+      <div class="morph">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2" stroke-dasharray="2 2"/></svg>
+        <div class="t">Awaiting a registered nuclear image</div>
+        <div class="d">This nucleus already carries an (x, y).<br>A co-registered DAPI/H&amp;E image drops<br>morphology straight onto this profile.</div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<footer>
+  <span>Slide-tags multiome · human melanoma lymph node</span>
+  <span>Tumour nests + immune infiltrate; each nucleus = RNA + ATAC + position</span>
+  <span style="margin-left:auto" class="mono">Tessera</span>
+</footer>
+
+<script>
+const DATA = __TESSERA_DATA__;
+
+const LINEAGE = {tumour_1:'Tumour',tumour_2:'Tumour',T_CD8:'T / NK',T_CD4:'T / NK',T_reg:'T / NK',
+  'mono-mac':'Myeloid',myeloid:'Myeloid',mDC:'Myeloid',pDC:'Myeloid',plasma:'Plasma'};
+const LINEAGE_ORDER=['Tumour','T / NK','Myeloid','Plasma'];
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+function lineageColors(){return {Tumour:css('--tumour'),'T / NK':css('--tnk'),Myeloid:css('--myeloid'),Plasma:css('--plasma')};}
+const SUBTYPE_COLOR={tumour_1:'#F0553B',tumour_2:'#FB8B63',T_CD8:'#2E86FF',T_CD4:'#79BEFF',T_reg:'#B4D9FF',
+  'mono-mac':'#F2C230',myeloid:'#CE9A1E',mDC:'#FFDE86',pDC:'#B0842A',plasma:'#2FD3AA'};
+const VIRIDIS=[[68,1,84],[65,68,135],[42,120,142],[34,168,132],[122,209,81],[253,231,37]];
+function viridis(t){t=Math.max(0,Math.min(1,t));const x=t*5,i=Math.floor(x),f=x-i,a=VIRIDIS[i],b=VIRIDIS[Math.min(5,i+1)];
+  return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;}
+
+const cats=DATA.categories, n=DATA.n;
+document.getElementById('ncells').textContent=n.toLocaleString();
+
+// normalise embeddings to [0,1]
+function norm(arr){let mn=Infinity,mx=-Infinity;for(const v of arr){if(v<mn)mn=v;if(v>mx)mx=v;}
+  const s=mx-mn||1;return {n:arr.map(v=>(v-mn)/s),mn,mx};}
+const SX=norm(DATA.sx),SY=norm(DATA.sy),UX=norm(DATA.ux),UY=norm(DATA.uy);
+const EMB={spatial:{x:SX.n,y:SY.n,flipY:true},umap:{x:UX.n,y:UY.n,flipY:false}};
+
+// colour-by options
+const sel=document.getElementById('colorby');
+[['lineage','Lineage'],['subtype','Cell subtype'],['__umis','RNA depth'],['__peaks','ATAC depth']]
+  .forEach(([v,l])=>sel.add(new Option(l,v)));
+const og=document.createElement('optgroup');og.label='Marker gene';
+Object.keys(DATA.markers).forEach(g=>og.appendChild(new Option(g,'g:'+g)));
+sel.appendChild(og);
+
+let state={emb:'spatial',color:'lineage',k:1,tx:0,ty:0,sel:null,hover:null,off:new Set()};
+
+const canvas=document.getElementById('scope'),ctx=canvas.getContext('2d');
+let W=0,H=0,dpr=1,pad=44;
+function resize(){const r=canvas.getBoundingClientRect();dpr=window.devicePixelRatio||1;
+  W=r.width;H=r.height;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+function project(i){const e=EMB[state.emb];const size=Math.min(W,H);
+  const ox=(W-size)/2,oy=(H-size)/2;
+  let px=ox+pad+e.x[i]*(size-2*pad);
+  let py=oy+pad+(e.flipY?(1-e.y[i]):e.y[i])*(size-2*pad);
+  return [px*state.k+state.tx,py*state.k+state.ty];}
+
+// colour value per cell
+function colorFor(i){
+  const c=state.color;
+  if(c==='lineage')return lineageColors()[LINEAGE[cats[DATA.ct[i]]]];
+  if(c==='subtype')return SUBTYPE_COLOR[cats[DATA.ct[i]]];
+  if(c==='__umis')return viridis(cont.norm[i]);
+  if(c==='__peaks')return viridis(cont.norm[i]);
+  if(c[0]==='g')return viridis(cont.norm[i]);
+  return '#888';
+}
+let cont={norm:[],min:0,max:1,label:''};
+function computeCont(){
+  const c=state.color;let arr=null,label='',log=false;
+  if(c==='__umis'){arr=DATA.umis;label='RNA UMIs';log=true;}
+  else if(c==='__peaks'){arr=DATA.npk;label='ATAC peaks';log=true;}
+  else if(c[0]==='g'){arr=DATA.markers[c.slice(2)];label=c.slice(2)+' (counts)';log=true;}
+  if(!arr){cont={norm:[],min:0,max:1,label:''};return false;}
+  const t=arr.map(v=>log?Math.log1p(v):v);let mn=Infinity,mx=-Infinity;
+  for(const v of t){if(v<mn)mn=v;if(v>mx)mx=v;}const s=mx-mn||1;
+  cont={norm:t.map(v=>(v-mn)/s),min:log?Math.expm1(mn):mn,max:log?Math.expm1(mx):mx,label};
+  return true;
+}
+function isOn(i){const ct=cats[DATA.ct[i]];
+  if(state.color==='subtype')return !state.off.has(ct);
+  return !state.off.has(LINEAGE[ct]);}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // faint grid
+  ctx.strokeStyle=css('--scope-grid');ctx.lineWidth=1;
+  const step=Math.max(60,80*state.k);
+  for(let x=(state.tx%step);x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=(state.ty%step);y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  const r=Math.max(1.9,2.8*Math.sqrt(state.k));
+  const categorical=(state.color==='lineage'||state.color==='subtype');
+  // dimmed first
+  for(let i=0;i<n;i++){if(isOn(i))continue;const [x,y]=project(i);
+    if(x<-5||x>W+5||y<-5||y>H+5)continue;
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle='rgba(140,150,155,.10)';ctx.fill();}
+  // active
+  for(let i=0;i<n;i++){if(!isOn(i))continue;if(i===state.sel)continue;const [x,y]=project(i);
+    if(x<-5||x>W+5||y<-5||y>H+5)continue;
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=colorFor(i);ctx.globalAlpha=categorical?.92:.9;ctx.fill();ctx.globalAlpha=1;}
+  // hover ring
+  if(state.hover!=null&&isOn(state.hover)){const [x,y]=project(state.hover);
+    ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.stroke();}
+  // selection
+  if(state.sel!=null){const [x,y]=project(state.sel);
+    ctx.beginPath();ctx.arc(x,y,r+2,0,7);ctx.fillStyle=colorFor(state.sel);ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,r+5,0,7);ctx.strokeStyle=css('--accent');ctx.lineWidth=2;ctx.stroke();}
+}
+
+function nearest(mx,my){let best=-1,bd=14*14;
+  for(let i=0;i<n;i++){if(!isOn(i))continue;const [x,y]=project(i);
+    const d=(x-mx)*(x-mx)+(y-my)*(y-my);if(d<bd){bd=d;best=i;}}return best>=0?best:null;}
+
+// interactions
+canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(dragging){state.tx+=mx-last[0];state.ty+=my-last[1];last=[mx,my];draw();return;}
+  const h=nearest(mx,my);state.hover=h;
+  const tt=document.getElementById('tooltip');
+  if(h!=null){const ct=cats[DATA.ct[h]];tt.style.display='block';tt.style.left=mx+'px';tt.style.top=my+'px';
+    tt.innerHTML=`<span class="sw" style="background:${colorFor(h)}"></span>${ct}`;}
+  else tt.style.display='none';
+  draw();});
+canvas.addEventListener('mouseleave',()=>{state.hover=null;document.getElementById('tooltip').style.display='none';draw();});
+let dragging=false,last=[0,0],moved=false;
+canvas.addEventListener('mousedown',e=>{dragging=true;moved=false;const r=canvas.getBoundingClientRect();last=[e.clientX-r.left,e.clientY-r.top];});
+window.addEventListener('mousemove',()=>{if(dragging)moved=true;});
+window.addEventListener('mouseup',e=>{if(dragging&&!moved){const r=canvas.getBoundingClientRect();
+    const h=nearest(e.clientX-r.left,e.clientY-r.top);if(h!=null)select(h);}dragging=false;});
+canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;const f=Math.exp(-e.deltaY*0.0015);
+  const nk=Math.max(0.6,Math.min(40,state.k*f));const ratio=nk/state.k;
+  state.tx=mx-(mx-state.tx)*ratio;state.ty=my-(my-state.ty)*ratio;state.k=nk;draw();},{passive:false});
+
+document.getElementById('reset').onclick=()=>{state.k=1;state.tx=0;state.ty=0;draw();};
+document.getElementById('emb-spatial').onclick=()=>setEmb('spatial');
+document.getElementById('emb-umap').onclick=()=>setEmb('umap');
+function setEmb(e){state.emb=e;state.k=1;state.tx=0;state.ty=0;
+  document.getElementById('emb-spatial').setAttribute('aria-pressed',e==='spatial');
+  document.getElementById('emb-umap').setAttribute('aria-pressed',e==='umap');draw();}
+sel.onchange=()=>{state.color=sel.value;state.off.clear();computeCont();buildLegend();draw();};
+
+// theme
+const root=document.documentElement;
+function applyTheme(t){if(t)root.setAttribute('data-theme',t);draw();}
+document.getElementById('theme').onclick=()=>{
+  const cur=root.getAttribute('data-theme');
+  const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  applyTheme(dark?'light':'dark');};
+
+// legend / colorbar
+function buildLegend(){
+  const lg=document.getElementById('legend'),cb=document.getElementById('colorbar');
+  const categorical=(state.color==='lineage'||state.color==='subtype');
+  lg.style.display=categorical?'flex':'none';cb.style.display=categorical?'none':'block';
+  if(!categorical){document.getElementById('cbtitle').textContent=cont.label;
+    document.getElementById('cbgrad').style.background=
+      `linear-gradient(90deg,${VIRIDIS.map((c,i)=>`rgb(${c[0]},${c[1]},${c[2]}) ${i/5*100}%`).join(',')})`;
+    document.getElementById('cbmin').textContent=Math.round(cont.min);
+    document.getElementById('cbmax').textContent=Math.round(cont.max);return;}
+  lg.innerHTML='';
+  const title=document.createElement('div');title.className='lg-title';
+  title.textContent=state.color==='lineage'?'Lineage':'Cell subtype';lg.appendChild(title);
+  const counts={};cats.forEach((c,ci)=>{});const cc=new Array(cats.length).fill(0);
+  for(let i=0;i<n;i++)cc[DATA.ct[i]]++;
+  if(state.color==='lineage'){
+    const lc=lineageColors();
+    LINEAGE_ORDER.forEach(L=>{let tot=0;cats.forEach((c,ci)=>{if(LINEAGE[c]===L)tot+=cc[ci];});
+      lg.appendChild(legendRow(L,lc[L],tot,()=>toggle(L)));});
+  }else{
+    LINEAGE_ORDER.forEach(L=>{cats.forEach((c,ci)=>{if(LINEAGE[c]!==L)return;
+      lg.appendChild(legendRow(c,SUBTYPE_COLOR[c],cc[ci],()=>toggle(c),true));});});
+  }
+}
+function legendRow(name,color,count,onclick,indent){
+  const row=document.createElement('div');row.className='row'+(indent?' indent':'');
+  if(state.off.has(name))row.classList.add('off');
+  row.innerHTML=`<span class="sw" style="background:${color}"></span><span>${name}</span><span class="n">${count}</span>`;
+  row.onclick=onclick;return row;}
+function toggle(name){state.off.has(name)?state.off.delete(name):state.off.add(name);buildLegend();draw();}
+
+// inspector
+function select(i){state.sel=i;const ct=cats[DATA.ct[i]];
+  document.getElementById('i-cid').textContent=DATA.ids?DATA.ids[i]:('nucleus '+i);
+  const sub=document.getElementById('i-sub');
+  sub.querySelector('.sw').style.background=SUBTYPE_COLOR[ct];
+  sub.querySelector('span:last-child').textContent=ct+' · '+LINEAGE[ct];
+  document.getElementById('i-xy').textContent=DATA.sx[i].toFixed(0)+', '+DATA.sy[i].toFixed(0)+' µm';
+  document.getElementById('i-umap').textContent=DATA.ux[i].toFixed(2)+', '+DATA.uy[i].toFixed(2);
+  document.getElementById('i-umis').textContent=DATA.umis[i].toLocaleString();
+  document.getElementById('i-genes').textContent=DATA.genes[i].toLocaleString();
+  document.getElementById('i-peaks').textContent=DATA.npk[i].toLocaleString();
+  const bars=document.getElementById('i-bars');bars.innerHTML='';
+  const top=DATA.top[i],max=Math.max(...top.map(t=>t[1]))||1,col=lineageColors()[LINEAGE[ct]];
+  top.forEach(([g,v])=>{const b=document.createElement('div');b.className='bar';
+    b.innerHTML=`<span class="g" title="${g}">${g}</span><span class="track"><span class="fill" style="width:${Math.max(3,v/max*100)}%;background:${col}"></span></span><span class="val">${v}</span>`;
+    bars.appendChild(b);});
+  const tcr=document.getElementById('i-tcr');tcr.innerHTML='';
+  const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];
+  if(a||b){if(a)tcr.appendChild(chip('α '+a));if(b)tcr.appendChild(chip('β '+b));}
+  else tcr.innerHTML='<span class="none">— no TCR detected</span>';
+  draw();}
+function chip(t){const c=document.createElement('span');c.className='chip mono';c.textContent=t;return c;}
+
+// init
+computeCont();buildLegend();resize();
+// open in a working state: preselect a representative tumour nucleus
+let seed=0;for(let i=0;i<n;i++){if(cats[DATA.ct[i]]==='tumour_1'){seed=i;break;}}
+select(seed);
+</script>

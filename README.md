@@ -59,7 +59,11 @@ p.catalogue_table()           # per-cell-type counts + mean morphology
 - [x] **Real ingest** — SCP2176 melanoma multiome (RNA 90k genes + ATAC 53k
       peaks + spatial + UMAP + TCR), 2,535 nuclei → `data/processed/melanoma.tessera`
 - [x] Multi-modal container (RNA primary + ATAC peaks sharing obs)
-- [ ] **Phase 2** — fast viewer: napari (desktop) → web (Zarr/Vitessce)
+- [x] **Phase 2a** — napari desktop viewer (`tessera.viewer.napari_view`):
+      spatial/UMAP toggle, colour by cell_type/gene/peak, click → profile panel
+- [x] **Phase 2b** — web viewer: `demo/export_web.py` builds a compact payload
+      into `web/viewer_template.html` → a self-contained, shareable HTML page
+      (pan/zoom scope, lineage/subtype/gene/depth colouring, per-nucleus inspector)
 - [ ] **Phase 3** — morphology ↔ omics association statistics
 - [ ] **Phase 4** — joint embedding
 - [ ] **Phase 5** — cross-modal prediction

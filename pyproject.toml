@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-viewer = ["napari[all]>=0.5"]
+viewer = ["napari>=0.5", "PyQt6"]
 dev = ["pytest"]
 
 [tool.hatch.build.targets.wheel]
