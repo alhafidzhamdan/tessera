@@ -9,6 +9,7 @@ description = "Pair single-nucleus morphology to multi-omic data (spatially, via
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Alhafidz Hamdan" }]
+license = { file = "LICENSE.md" }
 dependencies = [
     "anndata>=0.10",
     "zarr>=2.16",

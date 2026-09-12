@@ -71,5 +71,17 @@ p.catalogue_table()           # per-cell-type counts + mean morphology
 
 ## Status
 
-Pre-alpha scaffold. Synthetic data only; real slide-tags ingest pending the
-paper + SCP2176 download.
+Pre-alpha. Real SCP2176 slide-tags melanoma ingested; morphology demonstrated via
+synthetic 7-AAD imaging pending real microscopy.
+
+## License
+
+**Non-commercial.** Tessera is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.md): free to use, modify, and
+share for any non-commercial purpose — including academic research, teaching, and
+non-profit / government use — but not for commercial use. For a commercial
+licence, contact the author.
+
+Note: the SCP2176 melanoma data is **not** included in this repository and is
+governed by its own Broad Single Cell Portal terms; obtain it directly from the
+portal. Tessera is not affiliated with the slide-tags authors.
