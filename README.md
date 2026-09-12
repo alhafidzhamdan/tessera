@@ -74,6 +74,21 @@ p.catalogue_table()           # per-cell-type counts + mean morphology
 Pre-alpha. Real SCP2176 slide-tags melanoma ingested; morphology demonstrated via
 synthetic 7-AAD imaging pending real microscopy.
 
+## Development
+
+Set your commit identity to the email verified on your GitHub account so commits
+are attributed correctly:
+
+```bash
+git config user.name  "Alhafidz Hamdan"
+git config user.email "alhafidz.hamdan@ed.ac.uk"
+```
+
+**Important:** `alhafidz.hamdan@ed.ac.uk` must be added and **verified** under
+GitHub → Settings → Emails, otherwise GitHub shows the name on commits but does
+not link them to your account. Keep author and committer on the same verified
+email.
+
 ## License
 
 **Non-commercial.** Tessera is licensed under the
