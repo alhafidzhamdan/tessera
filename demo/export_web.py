@@ -100,6 +100,31 @@ def main(bundle, template, out):
             ]
     data["morph_features"] = morph_features
     data["morph"] = morph
+    data["stain"] = a.uns.get("stain")
+    data["morph_source"] = a.uns.get("morphology_source")
+
+    # embed per-nucleus crops as one PNG atlas (grid), referenced by index
+    if p.crops is not None:
+        import base64
+        import io
+
+        from PIL import Image
+
+        cs = p.crops.crop_shape[0]
+        cols = 51
+        rows = (a.n_obs + cols - 1) // cols
+        atlas = np.zeros((rows * cs, cols * cs), np.uint8)
+        for i, cid in enumerate(a.obs_names):
+            crop = p.crops.get(cid)[0]
+            r, c = divmod(i, cols)
+            atlas[r * cs:(r + 1) * cs, c * cs:(c + 1) * cs] = crop
+        buf = io.BytesIO()
+        Image.fromarray(atlas, "L").save(buf, format="PNG", optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        data["atlas"] = "data:image/png;base64," + b64
+        data["atlas_cols"] = cols
+        data["crop_px"] = cs
+        print(f"crop atlas: {rows}x{cols} @ {cs}px, {len(b64)/1e6:.2f} MB base64")
 
     payload = json.dumps(data, separators=(",", ":"))
     html = open(template).read().replace("__TESSERA_DATA__", payload)

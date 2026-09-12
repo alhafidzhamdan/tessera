@@ -179,6 +179,17 @@ section.blk > .eyebrow{display:block;margin-bottom:8px}
 .morph .ic{width:34px;height:34px;margin:0 auto 8px;color:var(--muted)}
 .morph .t{font-size:12.5px;font-weight:500;color:var(--ink-2)}
 .morph .d{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+.morph.filled{padding:12px;text-align:left;border-style:solid}
+.morphrow{display:flex;gap:13px;align-items:center}
+.morphrow canvas{width:112px;height:112px;flex:none;border-radius:9px;
+  background:var(--scope);border:1px solid var(--border)}
+.mstat{display:flex;flex-direction:column;gap:5px;min-width:0}
+.mstat .r{display:flex;justify-content:space-between;gap:16px;font-size:12px}
+.mstat .r .k{color:var(--muted)}
+.mstat .r .v{font-family:"IBM Plex Mono",monospace;color:var(--ink);font-variant-numeric:tabular-nums}
+.mcap{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);margin-top:9px}
+#stain-lab{color:var(--accent);font-weight:500}
 footer{padding:8px 18px;border-top:1px solid var(--border);background:var(--panel);
   font-size:11px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
 footer b{color:var(--ink-2);font-weight:500}
@@ -268,8 +279,8 @@ footer b{color:var(--ink-2);font-weight:500}
     </section>
 
     <section class="blk">
-      <span class="eyebrow">Morphology</span>
-      <div class="morph">
+      <span class="eyebrow">Morphology <span id="stain-lab"></span></span>
+      <div class="morph" id="morphbox">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
           <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2" stroke-dasharray="2 2"/></svg>
         <div class="t">Awaiting a registered nuclear image</div>
@@ -479,8 +490,33 @@ function select(i){state.sel=i;const ct=cats[DATA.ct[i]];
   const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];
   if(a||b){if(a)tcr.appendChild(chip('α '+a));if(b)tcr.appendChild(chip('β '+b));}
   else tcr.innerHTML='<span class="none">— no TCR detected</span>';
+  renderMorph(i);
   draw();}
 function chip(t){const c=document.createElement('span');c.className='chip mono';c.textContent=t;return c;}
+
+// morphology crop panel (populated once a nuclear image is wired in)
+let atlasImg=null;
+if(DATA.atlas){atlasImg=new Image();atlasImg.onload=()=>{if(state.sel!=null)renderMorph(state.sel);};atlasImg.src=DATA.atlas;}
+function renderMorph(i){
+  const box=document.getElementById('morphbox');
+  if(!DATA.atlas)return; // keep the "awaiting image" placeholder
+  box.classList.add('filled');
+  box.innerHTML=`<div class="morphrow"><canvas id="cropcv" width="128" height="128"></canvas>
+    <div class="mstat" id="mstats"></div></div>
+    <div class="mcap">${(DATA.stain||'stain')} · ${DATA.morph_source==='synthetic'?'synthetic':'imaged'} · registered to x, y</div>`;
+  const cv=document.getElementById('cropcv'),cx=cv.getContext('2d');
+  if(atlasImg&&atlasImg.complete){const cs=DATA.crop_px,cols=DATA.atlas_cols;
+    const sx=(i%cols)*cs,sy=Math.floor(i/cols)*cs;
+    cx.clearRect(0,0,128,128);
+    cx.drawImage(atlasImg,sx,sy,cs,cs,0,0,128,128);
+    cx.globalCompositeOperation='multiply';cx.fillStyle='#ff5570';cx.fillRect(0,0,128,128);
+    cx.globalCompositeOperation='source-over';}
+  const feats=[['area','Area','px'],['eccentricity','Eccentricity',''],['solidity','Solidity',''],
+    ['axis_major_length','Major axis','px'],['intensity_mean','Mean signal','']];
+  const ms=document.getElementById('mstats');ms.innerHTML='';
+  feats.forEach(([f,lab,u])=>{const v=(DATA.morph&&DATA.morph[f])?DATA.morph[f][i]:null;
+    if(v==null)return;ms.innerHTML+=`<div class="r"><span class="k">${lab}</span><span class="v">${v}${u?' '+u:''}</span></div>`;});
+}
 
 // ---- table / cell database ----
 const MORPH_SCHEMA=[['area','Area (px)'],['eccentricity','Eccentricity'],['solidity','Solidity'],
@@ -575,7 +611,10 @@ document.getElementById('tab-table').onclick=()=>setTab('table');
  LINEAGE_ORDER.forEach(L=>tl.add(new Option(L,L)));tl.onchange=renderRows;
  const note=document.getElementById('morph-note');
  if(!hasMorph){note.hidden=false;
-   note.textContent='Morphology columns are part of the schema; values fill in once a co-registered nuclear image is paired to these nuclei — the join key is each cell’s x, y.';}}
+   note.textContent='Morphology columns are part of the schema; values fill in once a co-registered nuclear image is paired to these nuclei — the join key is each cell’s x, y.';}
+ else if(DATA.morph_source==='synthetic'){note.hidden=false;
+   note.textContent='Morphology extracted from synthetic '+(DATA.stain||'')+' nuclear images (test), registered to each nucleus’s x, y via the real regionprops pipeline.';}
+ const sl=document.getElementById('stain-lab');if(sl&&DATA.stain)sl.textContent='· '+DATA.stain;}
 
 // init
 computeCont();buildLegend();resize();
