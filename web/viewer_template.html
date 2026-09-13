@@ -554,6 +554,17 @@ function buildExpr(){
     dl.innerHTML=EXPR.genes.slice(0,2000).map(g=>`<option value="${g}">`).join('');
   }catch(e){document.getElementById('gene-input').placeholder='load failed';}
 }
+function wireExpr(pre){  // feed an in-memory CSC matrix (e.g. parsed from a dropped .h5ad)
+  try{
+    EXPR={n_cells:pre.n_cells,genes:pre.genes};
+    GX_PTR=pre.ptr;GX_IDX=pre.idx;GX_CNT=pre.cnt;
+    GX_ROW={};pre.genes.forEach((g,i)=>GX_ROW[g.toUpperCase()]=i);
+    EXPR_READY=true;
+    const gi=document.getElementById('gene-input');gi.disabled=false;gi.placeholder='e.g. SOX2';
+    const dl=document.getElementById('gene-list');
+    if(dl)dl.innerHTML=pre.genes.slice(0,2000).map(g=>`<option value="${g}">`).join('');
+  }catch(e){document.getElementById('gene-input').placeholder='expr failed';}
+}
 function geneVector(sym){const gi=GX_ROW[sym.toUpperCase()];if(gi==null)return null;
   const s=GX_PTR[gi],e=GX_PTR[gi+1];const v=new Float32Array(EXPR.n_cells);
   for(let k=s;k<e;k++)v[GX_IDX[k]]=GX_CNT[k];return v;}
@@ -1031,5 +1042,5 @@ let seed=0;for(let i=0;i<n;i++){if(cats[DATA.ct[i]]==='tumour_1'){seed=i;break;}
 select(seed);
 setMode('pan');
 setTab('explore');
-loadExpr();
+if(window.__PRE_EXPR){wireExpr(window.__PRE_EXPR);}else{loadExpr();}
 </script>

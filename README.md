@@ -120,12 +120,15 @@ PYTHONPATH=src python -m tessera.viewer.napari_view mydata.tessera
 ```
 
 **Drop-a-file web app** (`web/viewer_app.html`) — a generic hosted viewer with an
-upload zone. Export your bundle to a single JSON and drop it in; nothing is sent
-to a server (the file is read in the browser):
+upload zone. Drop an **`.h5ad` (AnnData) directly** — it's parsed in the browser
+with [jsfive](https://github.com/usnistgov/jsfive) (pure-JS HDF5, no server, no
+upload), giving the full viewer **plus any-gene search** from the file's matrix —
+or drop a lightweight Tessera bundle JSON:
 
 ```bash
+# option A: just drop your .h5ad  (needs an expression matrix + obsm['spatial'])
+# option B: a small shareable bundle:
 python demo/export_bundle.py mydata.tessera mydata.tessera.json
-# open web/viewer_app.html (or the hosted app) and drop mydata.tessera.json
 python demo/make_app.py            # regenerate web/viewer_app.html from the template
 ```
 
@@ -136,9 +139,10 @@ self-contained page + companion files (adds full any-gene search):
 python demo/export_web.py mydata.tessera web/viewer_template.html out/index.html
 ```
 
-The drop-a-file app and baked page cover the current in-browser bundle format;
-native `.h5ad` upload would need an embedded HDF5/WASM reader (the browser sandbox
-blocks fetching one), so for now convert to a bundle with `export_bundle.py`.
+The `.h5ad` reader supports sparse (CSR) `X`, `obsm['spatial']` (required) and
+`obsm['X_umap']`, categorical `obs['cell_type']`, and reads morphology columns from
+`obs` if present. Very large files are held in memory, so a processed AnnData
+(HVG-subset) loads best; huge raw matrices are better shared as a bundle.
 
 ## Roadmap
 
@@ -154,7 +158,8 @@ blocks fetching one), so for now convert to a bundle with `export_bundle.py`.
       (pan/zoom scope, colour by lineage/subtype/any-gene/depth, cell table, lasso
       region stats + differential expression, saved regions, A/B compare)
 - [x] **Drop-a-file web app** (`web/viewer_app.html`) — generic hosted viewer;
-      drop a Tessera bundle JSON (`demo/export_bundle.py`) to explore, no re-export
+      drop an `.h5ad` (parsed in-browser via jsfive, with any-gene search) or a
+      Tessera bundle JSON — no re-export, nothing uploaded to a server
 - [ ] **Phase 3** — morphology ↔ omics association statistics
 - [ ] **Phase 4** — joint embedding
 - [ ] **Phase 5** — cross-modal prediction

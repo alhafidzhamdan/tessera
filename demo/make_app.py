@@ -11,15 +11,17 @@ TPL = "web/viewer_template.html"
 OUT = "web/viewer_app.html"
 
 DROP_UI = """
+<script src="https://cdn.jsdelivr.net/npm/jsfive@0.3.10/dist/browser/hdf5.js"></script>
+<script src="tessera_h5ad.js"></script>
 <div id="drop-overlay">
   <div id="dropzone">
     <div class="dz-title">Tessera viewer</div>
-    <div class="dz-sub">Drop a Tessera bundle <code>.json</code> to explore it — spatial &amp; UMAP, cell table, lasso, differential expression, A/B compare.</div>
+    <div class="dz-sub">Drop an <code>.h5ad</code> (AnnData) or a Tessera bundle <code>.json</code> to explore it — spatial &amp; UMAP, colour by any gene, cell table, lasso, differential expression, A/B compare. It just needs an expression matrix and <code>obsm['spatial']</code>.</div>
     <label class="dz-btn" for="drop-file">Choose file…</label>
-    <input id="drop-file" type="file" accept=".json,application/json" hidden>
+    <input id="drop-file" type="file" accept=".h5ad,.h5,.hdf5,.json,application/json" hidden>
     <button class="dz-demo" id="drop-demo">Load demo dataset</button>
     <div class="dz-msg" id="drop-msg"></div>
-    <div class="dz-foot">Make a bundle from any <code>.tessera</code>: <code>python demo/export_bundle.py in.tessera out.tessera.json</code> · nothing is uploaded to a server — the file is read in your browser.</div>
+    <div class="dz-foot">Reads <code>.h5ad</code> directly in your browser (no server, nothing uploaded). Very large files are read in memory, so a processed AnnData works best. Or make a lightweight bundle: <code>python demo/export_bundle.py in.tessera out.tessera.json</code>.</div>
   </div>
 </div>
 <style>
@@ -45,9 +47,20 @@ DROP_UI = """
   const ov=document.getElementById('drop-overlay');
   const msg=document.getElementById('drop-msg');
   function boot(d){try{ov.style.display='none';bootTessera(d);}catch(e){ov.style.display='flex';msg.textContent='Could not open: '+e.message;}}
-  function readFile(file){const fr=new FileReader();
+  function readFile(file){
+    if(/\\.(h5ad|h5|hdf5)$/i.test(file.name)){
+      if(!window.parseH5ad){msg.textContent='HDF5 reader still loading — try again in a moment';return;}
+      msg.textContent='reading '+file.name+' …';
+      const fr=new FileReader();
+      fr.onerror=()=>msg.textContent='Could not read the file.';
+      fr.onload=()=>setTimeout(()=>{try{const r=window.parseH5ad(fr.result,file.name);
+        window.__PRE_EXPR=r.expr;boot(r.DATA);}
+        catch(e){msg.textContent='.h5ad: '+e.message;}},10);
+      fr.readAsArrayBuffer(file);return;
+    }
+    const fr=new FileReader();
     fr.onerror=()=>msg.textContent='Could not read the file.';
-    fr.onload=()=>{try{boot(JSON.parse(fr.result));}catch(e){msg.textContent='Not a valid Tessera bundle JSON: '+e.message;}};
+    fr.onload=()=>{try{window.__PRE_EXPR=null;boot(JSON.parse(fr.result));}catch(e){msg.textContent='Not a valid Tessera bundle JSON: '+e.message;}};
     fr.readAsText(file);}
   document.getElementById('drop-file').addEventListener('change',e=>{if(e.target.files[0])readFile(e.target.files[0]);});
   const dz=document.getElementById('dropzone');
@@ -56,7 +69,7 @@ DROP_UI = """
   dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');
     const f=e.dataTransfer.files[0];if(f)readFile(f);});
   document.getElementById('drop-demo').addEventListener('click',()=>{
-    msg.textContent='loading demo…';
+    msg.textContent='loading demo…';window.__PRE_EXPR=null;
     if(window.DEMO_BUNDLE){boot(window.DEMO_BUNDLE);return;}
     const s=document.createElement('script');s.src='demo_bundle.js';
     s.onload=()=>window.DEMO_BUNDLE?boot(window.DEMO_BUNDLE):(msg.textContent='demo unavailable');
