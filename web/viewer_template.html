@@ -172,6 +172,7 @@ aside{border-left:1px solid var(--border);background:var(--panel);overflow-y:aut
 .rbtn{all:unset;cursor:pointer;font-size:11.5px;color:var(--accent);border:1px solid var(--accent);
   border-radius:7px;padding:3px 10px}
 .rbtn:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.rbtn.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .de .r{display:grid;grid-template-columns:66px 1fr auto;gap:8px;align-items:center;font-size:12px;padding:1px 0}
 .de .g{font-family:"IBM Plex Mono",monospace;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis}
 .de .lfc{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
@@ -263,6 +264,7 @@ footer b{color:var(--ink-2);font-weight:500}
       <button id="mode-pan" aria-pressed="true">Pan</button>
       <button id="mode-lasso" aria-pressed="false">Lasso</button>
     </div>
+    <button class="rbtn" id="ab-toggle">Compare A/B</button>
     <div class="field">
       <label for="colorby">Colour by</label>
       <select id="colorby"></select>
@@ -395,7 +397,8 @@ Object.keys(DATA.markers).forEach(g=>og.appendChild(new Option(g,'g:'+g)));
 sel.appendChild(og);
 
 let state={emb:'spatial',color:'lineage',k:1,tx:0,ty:0,sel:null,hover:null,off:new Set(),
-  mode:'pan',lasso:[],selection:new Set(),regions:[]};
+  mode:'pan',lasso:[],selection:new Set(),regions:[],
+  abMode:false,regionA:null,regionB:null,abNext:'A'};
 
 const canvas=document.getElementById('scope'),ctx=canvas.getContext('2d');
 let W=0,H=0,dpr=1,pad=44,_lastW=-1,_lastH=-1;
@@ -458,13 +461,18 @@ function draw(){
   for(let i=0;i<n;i++){if(isOn(i))continue;const [x,y]=project(i);
     if(x<-5||x>W+5||y<-5||y>H+5)continue;
     ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle='rgba(140,150,155,.10)';ctx.fill();}
-  // active (dim cells outside a lasso selection)
+  // active (dim cells outside a lasso selection / A-B compare)
   const hasSel=state.selection.size>0;
   const baseA=categorical?.92:.9;
-  for(let i=0;i<n;i++){if(!isOn(i))continue;if(i===state.sel)continue;const [x,y]=project(i);
+  const ab=state.abMode;
+  const setA=ab&&state.regionA?new Set(state.regionA):null;
+  const setB=ab&&state.regionB?new Set(state.regionB):null;
+  for(let i=0;i<n;i++){if(!isOn(i))continue;if(i===state.sel&&!ab)continue;const [x,y]=project(i);
     if(x<-5||x>W+5||y<-5||y>H+5)continue;
-    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=colorFor(i);
-    ctx.globalAlpha=hasSel?(state.selection.has(i)?1:.1):baseA;ctx.fill();ctx.globalAlpha=1;}
+    let fill=colorFor(i),a=baseA;
+    if(ab){a=.1;if(setA&&setA.has(i)){fill=AB_A;a=1;}else if(setB&&setB.has(i)){fill=AB_B;a=1;}}
+    else if(hasSel){a=state.selection.has(i)?1:.1;}
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=fill;ctx.globalAlpha=a;ctx.fill();ctx.globalAlpha=1;}
   // hover ring
   if(state.hover!=null&&isOn(state.hover)){const [x,y]=project(state.hover);
     ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle=css('--scope-strong');ctx.lineWidth=1.5;ctx.stroke();}
@@ -581,10 +589,18 @@ function pointInPoly(x,y,poly){let inside=false;
     if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}
   return inside;}
 function applyLasso(poly){
-  const s=new Set();
+  const arr=[];
   for(let i=0;i<n;i++){if(!isOn(i))continue;const [x,y]=project(i);
-    if(pointInPoly(x,y,poly))s.add(i);}
-  state.selection=s;state.sel=null;renderRegion();}
+    if(pointInPoly(x,y,poly))arr.push(i);}
+  if(state.abMode){
+    if(state.abNext==='A'){state.regionA=arr;state.abNext='B';}
+    else{state.regionB=arr;state.abNext='A';}
+    renderAB();
+    document.getElementById('hint').textContent=
+      !state.regionA?'Lasso region A':!state.regionB?'Lasso region B':'A vs B — Swap, Redo, or Clear';
+    return;
+  }
+  state.selection=new Set(arr);state.sel=null;renderRegion();}
 
 const gMean=(f,store)=>{const arr=store&&store[f];if(!arr)return null;
   let s=0,c=0;for(const v of arr){if(v!=null){s+=v;c++;}}return c?s/c:null;};
@@ -759,6 +775,62 @@ function openCompare(){
 }
 document.getElementById('compare-close').onclick=()=>document.getElementById('compare-modal').classList.remove('open');
 document.getElementById('compare-modal').onclick=e=>{if(e.target.id==='compare-modal')e.currentTarget.classList.remove('open');};
+
+// ---- direct A / B compare (two lassos) ----
+const AB_A='#17C2D4', AB_B='#F2A03D';
+function toggleAB(){state.abMode?exitAB():enterAB();}
+function enterAB(){state.abMode=true;state.regionA=null;state.regionB=null;state.abNext='A';
+  state.selection.clear();state.sel=null;
+  document.getElementById('ab-toggle').classList.add('on');
+  setMode('lasso');renderAB();
+  document.getElementById('hint').textContent='Lasso region A on the plot';draw();}
+function exitAB(){state.abMode=false;state.regionA=null;state.regionB=null;
+  document.getElementById('ab-toggle').classList.remove('on');
+  renderRegion();setMode(state.mode);draw();}
+function renderAB(){
+  const rp=document.getElementById('region-panel'),si=document.getElementById('single-inspector');
+  rp.hidden=false;si.hidden=true;
+  const A=state.regionA,B=state.regionB;
+  const slot=(lab,arr,color,s)=>`<div class="row"><span class="sw" style="background:${color}"></span>`+
+    `<span>${lab}</span><span class="n">${arr?arr.length+' cells':'lasso '+s}</span>`+
+    `<button class="clearbtn" data-redo="${s}" style="margin-left:8px;padding:1px 8px">redo</button></div>`;
+  let html=`<div class="insp-head"><span class="cid">Compare A / B</span>`+
+    `<button class="clearbtn" id="ab-exit">Exit</button></div>`+
+    `<div style="display:flex;gap:8px;margin:9px 0"><button class="rbtn" id="ab-swap">Swap A/B</button>`+
+    `<button class="rbtn" id="ab-clear">Clear</button></div>`+
+    `<section class="blk"><div class="legend-list">`+slot('Region A',A,AB_A,'A')+slot('Region B',B,AB_B,'B')+`</div></section>`;
+  if(A&&A.length&&B&&B.length){
+    const met=[['Cells',r=>r.length.toLocaleString()],
+      ['% Tumour',r=>lineagePct(r,'Tumour').toFixed(0)+'%'],
+      ['% T / NK',r=>lineagePct(r,'T / NK').toFixed(0)+'%'],
+      ['% Myeloid',r=>lineagePct(r,'Myeloid').toFixed(0)+'%'],
+      ['Nuclear area',r=>{const v=selMean('area',DATA.morph,r);return v?Math.round(v):'—';}],
+      ['N:C ratio',r=>{const v=selMean('nc_ratio',DATA.cellmorph,r);return v?v.toFixed(2):'—';}],
+      ['Median UMIs',r=>Math.round(median(r.map(i=>DATA.umis[i]))).toLocaleString()]];
+    html+=`<section class="blk"><span class="eyebrow">Metrics</span><table class="ctable">`+
+      `<thead><tr><th>Metric</th><th class="num"><span class="rdot" style="background:${AB_A}"></span>A</th>`+
+      `<th class="num"><span class="rdot" style="background:${AB_B}"></span>B</th></tr></thead><tbody>`+
+      met.map(([l,fn])=>`<tr><td>${l}</td><td class="num">${fn(A)}</td><td class="num">${fn(B)}</td></tr>`).join('')+
+      `</tbody></table></section>`;
+    const de=deTest(A,B),up=de.slice(0,8),down=de.slice(-8).reverse();
+    const row=d=>{const col=d.lfc>0?AB_A:AB_B;return `<div class="r"><span class="g" title="${d.gene}">${d.gene}</span>`+
+      `<span class="lfc" style="color:${col}">${d.lfc>0?'+':''}${d.lfc.toFixed(2)}</span><span class="p">p=${fmtP(d.p)}</span></div>`;};
+    html+=`<section class="blk"><span class="eyebrow">Differential expression · A vs B</span>`+
+      `<div class="de">${up.map(row).join('')}<div style="height:7px"></div>${down.map(row).join('')}</div>`+
+      `<div class="mcap">+ = higher in A · Wilcoxon over ${DATA.deg_genes?DATA.deg_genes.length:0} genes</div></section>`;
+  }else{
+    html+=`<div class="mcap" style="margin-top:8px">Lasso ${!A?'region A':'region B'} on the plot — both areas colour independently and compare live.</div>`;
+  }
+  rp.innerHTML=html;
+  document.getElementById('ab-exit').onclick=exitAB;
+  document.getElementById('ab-clear').onclick=()=>{state.regionA=null;state.regionB=null;state.abNext='A';
+    document.getElementById('hint').textContent='Lasso region A on the plot';renderAB();draw();};
+  document.getElementById('ab-swap').onclick=()=>{const t=state.regionA;state.regionA=state.regionB;state.regionB=t;renderAB();draw();};
+  rp.querySelectorAll('[data-redo]').forEach(b=>b.onclick=()=>{const s=b.dataset.redo;state.abNext=s;
+    if(s==='A')state.regionA=null;else state.regionB=null;
+    document.getElementById('hint').textContent='Lasso region '+s;renderAB();draw();});
+}
+document.getElementById('ab-toggle').onclick=toggleAB;
 
 // theme
 const root=document.documentElement;
