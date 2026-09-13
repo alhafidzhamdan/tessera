@@ -149,6 +149,13 @@ main{flex:1;min-height:0;position:relative}
 /* ---- inspector ---- */
 aside{border-left:1px solid var(--border);background:var(--panel);overflow-y:auto;padding:16px}
 .insp-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.clearbtn{margin-left:auto;all:unset;cursor:pointer;font-size:11.5px;color:var(--accent);
+  border:1px solid var(--border);border-radius:7px;padding:3px 10px}
+.clearbtn:hover{background:var(--panel-2)}
+.legend-list{display:flex;flex-direction:column;gap:3px}
+.legend-list .row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);padding:1px 0}
+.legend-list .row .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.legend-list .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
 .cid{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--ink)}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
   padding:2px 9px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2);color:var(--ink-2)}
@@ -218,6 +225,10 @@ footer b{color:var(--ink-2);font-weight:500}
       <button id="emb-spatial" aria-pressed="true">Spatial</button>
       <button id="emb-umap" aria-pressed="false">UMAP</button>
     </div>
+    <div class="seg" role="group" aria-label="Tool">
+      <button id="mode-pan" aria-pressed="true">Pan</button>
+      <button id="mode-lasso" aria-pressed="false">Lasso</button>
+    </div>
     <div class="field">
       <label for="colorby">Colour by</label>
       <select id="colorby"></select>
@@ -246,6 +257,8 @@ footer b{color:var(--ink-2);font-weight:500}
   </div>
 
   <aside id="inspector">
+    <div id="region-panel" hidden></div>
+    <div id="single-inspector">
     <div class="insp-head">
       <span class="cid" id="i-cid">—</span>
       <span class="chip" id="i-sub"><span class="sw"></span><span>—</span></span>
@@ -288,6 +301,7 @@ footer b{color:var(--ink-2);font-weight:500}
         <div class="d">This nucleus already carries an (x, y).<br>A co-registered DAPI/H&amp;E image drops<br>morphology straight onto this profile.</div>
       </div>
     </section>
+    </div>
   </aside>
   </div>
   <div id="view-table">
@@ -333,7 +347,8 @@ const og=document.createElement('optgroup');og.label='Marker gene';
 Object.keys(DATA.markers).forEach(g=>og.appendChild(new Option(g,'g:'+g)));
 sel.appendChild(og);
 
-let state={emb:'spatial',color:'lineage',k:1,tx:0,ty:0,sel:null,hover:null,off:new Set()};
+let state={emb:'spatial',color:'lineage',k:1,tx:0,ty:0,sel:null,hover:null,off:new Set(),
+  mode:'pan',lasso:[],selection:new Set()};
 
 const canvas=document.getElementById('scope'),ctx=canvas.getContext('2d');
 let W=0,H=0,dpr=1,pad=44,_lastW=-1,_lastH=-1;
@@ -393,17 +408,25 @@ function draw(){
   for(let i=0;i<n;i++){if(isOn(i))continue;const [x,y]=project(i);
     if(x<-5||x>W+5||y<-5||y>H+5)continue;
     ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle='rgba(140,150,155,.10)';ctx.fill();}
-  // active
+  // active (dim cells outside a lasso selection)
+  const hasSel=state.selection.size>0;
+  const baseA=categorical?.92:.9;
   for(let i=0;i<n;i++){if(!isOn(i))continue;if(i===state.sel)continue;const [x,y]=project(i);
     if(x<-5||x>W+5||y<-5||y>H+5)continue;
-    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=colorFor(i);ctx.globalAlpha=categorical?.92:.9;ctx.fill();ctx.globalAlpha=1;}
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=colorFor(i);
+    ctx.globalAlpha=hasSel?(state.selection.has(i)?1:.1):baseA;ctx.fill();ctx.globalAlpha=1;}
   // hover ring
   if(state.hover!=null&&isOn(state.hover)){const [x,y]=project(state.hover);
     ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.stroke();}
-  // selection
-  if(state.sel!=null){const [x,y]=project(state.sel);
+  // single-cell selection ring
+  if(state.sel!=null&&!hasSel){const [x,y]=project(state.sel);
     ctx.beginPath();ctx.arc(x,y,r+2,0,7);ctx.fillStyle=colorFor(state.sel);ctx.fill();
     ctx.beginPath();ctx.arc(x,y,r+5,0,7);ctx.strokeStyle=css('--accent');ctx.lineWidth=2;ctx.stroke();}
+  // lasso path being drawn
+  if(state.lasso.length>1){ctx.beginPath();ctx.moveTo(state.lasso[0][0],state.lasso[0][1]);
+    for(let i=1;i<state.lasso.length;i++)ctx.lineTo(state.lasso[i][0],state.lasso[i][1]);
+    ctx.closePath();ctx.fillStyle='rgba(23,194,212,.10)';ctx.fill();
+    ctx.strokeStyle=css('--accent');ctx.lineWidth=1.6;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);}
 }
 
 function nearest(mx,my){let best=-1,bd=14*14;
@@ -411,8 +434,10 @@ function nearest(mx,my){let best=-1,bd=14*14;
     const d=(x-mx)*(x-mx)+(y-my)*(y-my);if(d<bd){bd=d;best=i;}}return best>=0?best:null;}
 
 // interactions
+let dragging=false,last=[0,0],moved=false,lassoing=false;
 canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();
   const mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(lassoing){state.lasso.push([mx,my]);draw();return;}
   if(dragging){state.tx+=mx-last[0];state.ty+=my-last[1];last=[mx,my];draw();return;}
   const h=nearest(mx,my);state.hover=h;
   const tt=document.getElementById('tooltip');
@@ -421,11 +446,17 @@ canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();
   else tt.style.display='none';
   draw();});
 canvas.addEventListener('mouseleave',()=>{state.hover=null;document.getElementById('tooltip').style.display='none';draw();});
-let dragging=false,last=[0,0],moved=false;
-canvas.addEventListener('mousedown',e=>{dragging=true;moved=false;const r=canvas.getBoundingClientRect();last=[e.clientX-r.left,e.clientY-r.top];});
+canvas.addEventListener('mousedown',e=>{const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(state.mode==='lasso'){lassoing=true;state.lasso=[[mx,my]];draw();return;}
+  dragging=true;moved=false;last=[mx,my];});
 window.addEventListener('mousemove',()=>{if(dragging)moved=true;});
-window.addEventListener('mouseup',e=>{if(dragging&&!moved){const r=canvas.getBoundingClientRect();
-    const h=nearest(e.clientX-r.left,e.clientY-r.top);if(h!=null)select(h);}dragging=false;});
+window.addEventListener('mouseup',e=>{
+  if(lassoing){lassoing=false;if(state.lasso.length>2)applyLasso(state.lasso);state.lasso=[];draw();return;}
+  if(dragging&&!moved){const r=canvas.getBoundingClientRect();
+    const h=nearest(e.clientX-r.left,e.clientY-r.top);
+    if(h!=null){state.selection.clear();renderRegion();select(h);}}
+  dragging=false;});
 canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();
   const mx=e.clientX-r.left,my=e.clientY-r.top;const f=Math.exp(-e.deltaY*0.0015);
   const nk=Math.max(0.6,Math.min(40,state.k*f));const ratio=nk/state.k;
@@ -438,6 +469,87 @@ function setEmb(e){state.emb=e;state.k=1;state.tx=0;state.ty=0;
   document.getElementById('emb-spatial').setAttribute('aria-pressed',e==='spatial');
   document.getElementById('emb-umap').setAttribute('aria-pressed',e==='umap');draw();}
 sel.onchange=()=>{state.color=sel.value;state.off.clear();computeCont();buildLegend();draw();};
+
+// ---- lasso selection ----
+function setMode(m){state.mode=m;
+  document.getElementById('mode-pan').setAttribute('aria-pressed',m==='pan');
+  document.getElementById('mode-lasso').setAttribute('aria-pressed',m==='lasso');
+  canvas.style.cursor=(m==='lasso')?'cell':'crosshair';
+  document.getElementById('hint').textContent=(m==='lasso')
+    ? 'draw a loop around cells to select · switch to Pan to zoom'
+    : 'scroll to zoom · drag to pan · click a nucleus · Lasso to select a region';}
+document.getElementById('mode-pan').onclick=()=>setMode('pan');
+document.getElementById('mode-lasso').onclick=()=>setMode('lasso');
+
+function pointInPoly(x,y,poly){let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}
+  return inside;}
+function applyLasso(poly){
+  const s=new Set();
+  for(let i=0;i<n;i++){if(!isOn(i))continue;const [x,y]=project(i);
+    if(pointInPoly(x,y,poly))s.add(i);}
+  state.selection=s;state.sel=null;renderRegion();}
+
+const gMean=(f,store)=>{const arr=store&&store[f];if(!arr)return null;
+  let s=0,c=0;for(const v of arr){if(v!=null){s+=v;c++;}}return c?s/c:null;};
+const selMean=(f,store,idx)=>{const arr=store&&store[f];if(!arr)return null;
+  let s=0,c=0;for(const i of idx){const v=arr[i];if(v!=null){s+=v;c++;}}return c?s/c:null;};
+const median=(vals)=>{if(!vals.length)return 0;const a=[...vals].sort((x,y)=>x-y);
+  const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+
+function renderRegion(){
+  const rp=document.getElementById('region-panel'),si=document.getElementById('single-inspector');
+  const idx=[...state.selection];
+  if(idx.length===0){rp.hidden=true;si.hidden=false;return;}
+  rp.hidden=false;si.hidden=true;
+  const pct=(100*idx.length/n).toFixed(1);
+  // composition by subtype (grouped by lineage)
+  const cc={};for(const i of idx){const c=cats[DATA.ct[i]];cc[c]=(cc[c]||0)+1;}
+  const comp=Object.entries(cc).sort((a,b)=>b[1]-a[1]).map(([c,k])=>
+    `<div class="row"><span class="sw" style="background:${SUBTYPE_COLOR[c]}"></span>`+
+    `<span>${c}</span><span class="n">${k} · ${(100*k/idx.length).toFixed(0)}%</span></div>`).join('');
+  // morphology means vs whole dataset
+  const mfeat=[['area','Area','px','m'],['nc_ratio','N:C ratio','','c'],
+    ['circularity','Circularity','','m'],['integrated_intensity','DNA (integ.)','','m']];
+  const morphRows=mfeat.map(([f,lab,u,src])=>{
+    const store=src==='c'?DATA.cellmorph:DATA.morph;
+    const sv=selMean(f,store,idx),gv=gMean(f,store);
+    if(sv==null)return '';
+    const d=gv?(sv-gv)/gv*100:0;
+    const arrow=d>3?'▲':d<-3?'▼':'·';const col=d>3?'#2a8f86':d<-3?'#C2543A':'var(--muted)';
+    const fmt=v=>f==='integrated_intensity'?Math.round(v).toLocaleString():(Math.abs(v)>=20?Math.round(v):v.toFixed(2));
+    return `<div class="r"><span class="k">${lab}</span><span class="v">${fmt(sv)}${u?' '+u:''} `+
+      `<span style="color:${col}">${arrow}${Math.abs(d).toFixed(0)}%</span></span></div>`;}).join('');
+  // depth
+  const umis=median(idx.map(i=>DATA.umis[i])),peaks=median(idx.map(i=>DATA.npk[i]));
+  // top genes: sum of per-cell top gene values across the region
+  const g={};for(const i of idx)for(const [name,val] of DATA.top[i])g[name]=(g[name]||0)+val;
+  const topg=Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const gmax=topg.length?topg[0][1]:1;
+  const bars=topg.map(([name,v])=>`<div class="bar"><span class="g" title="${name}">${name}</span>`+
+    `<span class="track"><span class="fill" style="width:${Math.max(3,v/gmax*100)}%;background:var(--accent)"></span></span></div>`).join('');
+
+  rp.innerHTML=`
+    <div class="insp-head">
+      <span class="cid">${idx.length.toLocaleString()} cells</span>
+      <span class="chip">${pct}% of tissue</span>
+      <button class="clearbtn" id="region-clear">Clear</button>
+    </div>
+    <section class="blk"><span class="eyebrow">Composition</span>
+      <div class="legend-list">${comp}</div></section>
+    <section class="blk"><span class="eyebrow">Mean morphology · vs whole dataset</span>
+      <div class="joinkey"><div class="mstat">${morphRows||'<span class="k">no morphology</span>'}</div></div></section>
+    <section class="blk"><span class="eyebrow">Median depth</span>
+      <div class="stats">
+        <div class="stat"><div class="num">${Math.round(umis).toLocaleString()}</div><div class="lab">RNA UMIs</div></div>
+        <div class="stat"><div class="num">${Math.round(peaks).toLocaleString()}</div><div class="lab">ATAC peaks</div></div>
+      </div></section>
+    <section class="blk"><span class="eyebrow">Top genes in region</span>
+      <div class="bars">${bars}</div></section>`;
+  document.getElementById('region-clear').onclick=()=>{state.selection.clear();renderRegion();draw();};
+}
 
 // theme
 const root=document.documentElement;
@@ -636,5 +748,6 @@ computeCont();buildLegend();resize();
 // open in a working state: preselect a representative tumour nucleus
 let seed=0;for(let i=0;i<n;i++){if(cats[DATA.ct[i]]==='tumour_1'){seed=i;break;}}
 select(seed);
+setMode('pan');
 setTab('explore');
 </script>
