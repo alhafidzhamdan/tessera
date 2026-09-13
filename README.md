@@ -113,18 +113,32 @@ exercise the pipeline.)
 
 ### View it
 
-```bash
-# desktop (any gene/peak, full data in memory):
-PYTHONPATH=src python -m tessera.viewer.napari_view mydata.tessera
+**Desktop (napari)** — reads any bundle directly; any gene/peak, full data in memory:
 
-# shareable web viewer (generates a self-contained page + companion files):
+```bash
+PYTHONPATH=src python -m tessera.viewer.napari_view mydata.tessera
+```
+
+**Drop-a-file web app** (`web/viewer_app.html`) — a generic hosted viewer with an
+upload zone. Export your bundle to a single JSON and drop it in; nothing is sent
+to a server (the file is read in the browser):
+
+```bash
+python demo/export_bundle.py mydata.tessera mydata.tessera.json
+# open web/viewer_app.html (or the hosted app) and drop mydata.tessera.json
+python demo/make_app.py            # regenerate web/viewer_app.html from the template
+```
+
+**Baked page** (`demo/export_web.py`) — one dataset compiled into its own
+self-contained page + companion files (adds full any-gene search):
+
+```bash
 python demo/export_web.py mydata.tessera web/viewer_template.html out/index.html
 ```
 
-The web viewer bakes one dataset into a page (data ships with it), so a new
-dataset means re-running `export_web.py` and publishing a new page — there is no
-"upload" button on the hosted page. The desktop napari viewer reads any
-`.tessera` bundle directly.
+The drop-a-file app and baked page cover the current in-browser bundle format;
+native `.h5ad` upload would need an embedded HDF5/WASM reader (the browser sandbox
+blocks fetching one), so for now convert to a bundle with `export_bundle.py`.
 
 ## Roadmap
 
@@ -137,7 +151,10 @@ dataset means re-running `export_web.py` and publishing a new page — there is 
       spatial/UMAP toggle, colour by cell_type/gene/peak, click → profile panel
 - [x] **Phase 2b** — web viewer: `demo/export_web.py` builds a compact payload
       into `web/viewer_template.html` → a self-contained, shareable HTML page
-      (pan/zoom scope, lineage/subtype/gene/depth colouring, per-nucleus inspector)
+      (pan/zoom scope, colour by lineage/subtype/any-gene/depth, cell table, lasso
+      region stats + differential expression, saved regions, A/B compare)
+- [x] **Drop-a-file web app** (`web/viewer_app.html`) — generic hosted viewer;
+      drop a Tessera bundle JSON (`demo/export_bundle.py`) to explore, no re-export
 - [ ] **Phase 3** — morphology ↔ omics association statistics
 - [ ] **Phase 4** — joint embedding
 - [ ] **Phase 5** — cross-modal prediction
@@ -147,21 +164,6 @@ dataset means re-running `export_web.py` and publishing a new page — there is 
 
 Pre-alpha. Real SCP2176 slide-tags melanoma ingested; morphology demonstrated via
 synthetic 7-AAD imaging pending real microscopy.
-
-## Development
-
-Set your commit identity to the email verified on your GitHub account so commits
-are attributed correctly:
-
-```bash
-git config user.name  "Alhafidz Hamdan"
-git config user.email "alhafidz.hamdan@ed.ac.uk"
-```
-
-**Important:** `alhafidz.hamdan@ed.ac.uk` must be added and **verified** under
-GitHub → Settings → Emails, otherwise GitHub shows the name on commits but does
-not link them to your account. Keep author and committer on the same verified
-email.
 
 ## License
 

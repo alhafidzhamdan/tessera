@@ -79,21 +79,29 @@ def write_expression_files(out_dir, X, var_names, min_cells=3, chunk_chars=14_00
     return files
 
 
-def main(bundle, template, out):
-    p = PairedData.load(bundle)
+def build_payload(p):
+    """Build the in-page DATA dict (shared by the baked viewer and the drop-a-file
+    bundle). Independent of any expression companion files."""
     a = p.adata
     obs = a.obs
+    if "cell_type" not in obs:
+        obs["cell_type"] = "cell"
+    if not str(obs["cell_type"].dtype).startswith("category"):
+        obs["cell_type"] = obs["cell_type"].astype("category")
     cats = list(obs["cell_type"].cat.categories)
     ct = obs["cell_type"].cat.codes.to_numpy().astype(int)
 
     xy = a.obsm["spatial"]
-    um = a.obsm["X_umap"]
+    um = a.obsm["X_umap"] if "X_umap" in a.obsm else xy  # fall back to spatial
 
     X = a.X.tocsr()
     umis = np.asarray(X.sum(1)).ravel().astype(int)
     genes = np.asarray((X > 0).sum(1)).ravel().astype(int)
-    atac = p.mods["atac"].X.tocsr()
-    npk = np.asarray((atac > 0).sum(1)).ravel().astype(int)
+    if "atac" in p.mods:
+        atac = p.mods["atac"].X.tocsr()
+        npk = np.asarray((atac > 0).sum(1)).ravel().astype(int)
+    else:
+        npk = np.zeros(a.n_obs, dtype=int)
 
     var_names = list(a.var_names)
     var_idx = {g: i for i, g in enumerate(var_names)}
@@ -220,14 +228,19 @@ def main(bundle, template, out):
         data["crop_channels"] = list(p.crops.channel_names)
         print(f"crop atlas: {rows}x{cols} @ {cs}px RGB, {len(b64)/1e6:.2f} MB base64")
 
+    return data
+
+
+def main(bundle, template, out):
+    p = PairedData.load(bundle)
+    data = build_payload(p)
     payload = json.dumps(data, separators=(",", ":"))
     html = open(template).read().replace("__TESSERA_DATA__", payload)
     open(out, "w").write(html)
-    mb = len(html.encode()) / 1e6
-    print(f"markers embedded: {len(markers)} ({', '.join(markers)})")
-    print(f"wrote {out}  ({mb:.2f} MB)")
+    print(f"wrote {out}  ({len(html.encode())/1e6:.2f} MB)")
 
-    files = write_expression_files(os.path.dirname(os.path.abspath(out)), X, var_names)
+    X = p.adata.X.tocsr()
+    files = write_expression_files(os.path.dirname(os.path.abspath(out)), X, list(p.adata.var_names))
     print("COMPANION_FILES " + " ".join(sorted(files)))
 
 

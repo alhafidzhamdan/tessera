@@ -1,0 +1,1089 @@
+<title>Tessera Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#E9EEEF; --panel:#FFFFFF; --panel-2:#F3F6F7; --border:#D5DEDF;
+  --ink:#14242A; --ink-2:#3A4A50; --muted:#697B81;
+  --accent:#0EA5B7; --accent-ink:#ffffff;
+  --scope:#F5F8F8; --scope-grid:rgba(20,36,42,.06); --scope-ink:#5A6B72; --scope-strong:#14242A;
+  --shadow:0 1px 2px rgba(20,36,42,.06),0 8px 24px rgba(20,36,42,.08);
+  --tumour:#F0553B; --tnk:#3E9BFF; --myeloid:#E0A21C; --plasma:#1FB394;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme:dark){
+    --bg:#0C1214; --panel:#121A1D; --panel-2:#0F1618; --border:#25302F;
+    --ink:#E7EEEF; --ink-2:#B9C6C7; --muted:#849699;
+    --accent:#19C2D4; --accent-ink:#04191c;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+    --myeloid:#F2C230; --plasma:#2FD3AA;
+    --scope:#0B1013; --scope-grid:rgba(255,255,255,.05); --scope-ink:#8FA0A4; --scope-strong:#EAF1F1;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1214; --panel:#121A1D; --panel-2:#0F1618; --border:#25302F;
+  --ink:#E7EEEF; --ink-2:#B9C6C7; --muted:#849699;
+  --accent:#19C2D4; --accent-ink:#04191c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+  --myeloid:#F2C230; --plasma:#2FD3AA;
+  --scope:#0B1013; --scope-grid:rgba(255,255,255,.05); --scope-ink:#8FA0A4; --scope-strong:#EAF1F1;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+
+/* ---- header ---- */
+header{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--border);background:var(--panel);
+}
+.brand{display:flex;flex-direction:column;gap:1px;margin-right:auto}
+.brand h1{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.brand .sub{font-size:11.5px;color:var(--muted)}
+.brand .sub b{color:var(--ink-2);font-weight:500}
+
+/* ---- controls ---- */
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--border);
+  border-radius:9px;padding:2px}
+.seg button{all:unset;cursor:pointer;padding:5px 12px;border-radius:7px;font-size:12.5px;
+  color:var(--ink-2);font-weight:500;transition:background .12s,color .12s}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:flex;align-items:center;gap:7px}
+.field label{font-size:11px;color:var(--muted)}
+select{
+  font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:8px;padding:5px 26px 5px 10px;cursor:pointer;
+  appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%23697B81' stroke-width='1.5'/></svg>");
+  background-repeat:no-repeat;background-position:right 9px center}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.icon-btn{all:unset;cursor:pointer;display:grid;place-items:center;width:32px;height:32px;
+  border:1px solid var(--border);border-radius:8px;color:var(--ink-2);background:var(--panel-2)}
+.icon-btn:hover{color:var(--ink)}
+.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- tabs / toolbars ---- */
+.tabs button{padding:5px 14px}
+.grow{flex:1 1 auto}
+.tools{display:flex;align-items:center;gap:12px}
+#tsearch{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:8px;padding:6px 11px;width:200px}
+#tsearch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#gene-input{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:8px;padding:5px 10px;width:110px}
+#gene-input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#gene-input.bad{border-color:#C2543A}
+#tcount{white-space:nowrap}
+
+/* ---- main ---- */
+main{flex:1;min-height:0;position:relative}
+#view-explore{display:grid;grid-template-columns:1fr 336px;height:100%;min-height:0}
+#view-table{height:100%;overflow:hidden;background:var(--panel);display:flex;flex-direction:column}
+.table-scroll{flex:1;min-height:0;overflow:auto}
+
+/* ---- data grid ---- */
+#celltable{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;color:var(--ink)}
+#celltable th,#celltable td{padding:7px 12px;text-align:left;white-space:nowrap;
+  border-bottom:1px solid var(--border)}
+#celltable thead th{position:sticky;background:var(--panel);z-index:2;
+  font-weight:500;color:var(--ink-2)}
+#celltable thead tr.groups th{top:0;font-family:"IBM Plex Mono",monospace;font-size:10px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--border);padding-top:9px;padding-bottom:5px}
+#celltable thead tr.cols th{top:31px;cursor:pointer;user-select:none}
+#celltable thead tr.cols th:hover{color:var(--ink)}
+#celltable thead tr.cols th .ar{color:var(--accent);font-size:10px;margin-left:3px}
+#celltable th.g-Location{box-shadow:inset 1px 0 0 var(--border)}
+#celltable th.g-Morphology{box-shadow:inset 1px 0 0 var(--border)}
+#celltable th.g-Cell{box-shadow:inset 1px 0 0 var(--border)}
+#celltable th.g-Multi-omics{box-shadow:inset 1px 0 0 var(--border)}
+#celltable td.num,#celltable th.num{text-align:right;
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+#celltable td.idcol{font-family:"IBM Plex Mono",monospace;color:var(--ink-2)}
+#celltable tbody tr{cursor:pointer}
+#celltable tbody tr:hover{background:var(--panel-2)}
+#celltable tbody tr.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.lincell{display:inline-flex;align-items:center;gap:7px}
+.lincell .sw{width:9px;height:9px;border-radius:2px;flex:none}
+.dash{color:var(--muted)}
+.await-note{padding:7px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);
+  background:var(--panel-2)}
+.scope-wrap{position:relative;background:var(--scope);min-width:0;min-height:0;overflow:hidden}
+#scope{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:crosshair}
+.overlay{position:absolute;pointer-events:none;color:var(--scope-ink);
+  font-family:"IBM Plex Mono",monospace;font-size:11px}
+#hint{left:14px;bottom:12px;opacity:.75}
+#tooltip{
+  position:absolute;pointer-events:none;z-index:5;display:none;
+  background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);
+  border-radius:7px;padding:6px 9px;color:var(--ink);font-size:12px;
+  font-family:"IBM Plex Mono",monospace;white-space:nowrap;transform:translate(-50%,-140%)}
+#tooltip .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+
+/* legend */
+.legend{position:absolute;left:14px;top:14px;display:flex;flex-direction:column;gap:6px;
+  background:var(--panel);backdrop-filter:blur(6px);box-shadow:var(--shadow);
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;max-width:210px}
+.legend .lg-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:1px}
+.legend .row{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink);font-size:12px;
+  padding:1px 2px;border-radius:5px;user-select:none}
+.legend .row:hover{background:var(--panel-2)}
+.legend .row.off{opacity:.32}
+.legend .row .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.legend .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted)}
+.legend .indent{margin-left:6px}
+#colorbar{position:absolute;left:14px;top:14px;display:none;
+  background:var(--panel);backdrop-filter:blur(6px);box-shadow:var(--shadow);
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--ink)}
+#colorbar .lg-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+#cbgrad{width:150px;height:10px;border-radius:3px}
+#cbscale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+  font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ---- inspector ---- */
+aside{border-left:1px solid var(--border);background:var(--panel);overflow-y:auto;padding:16px}
+.insp-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.clearbtn{margin-left:auto;all:unset;cursor:pointer;font-size:11.5px;color:var(--accent);
+  border:1px solid var(--border);border-radius:7px;padding:3px 10px}
+.clearbtn:hover{background:var(--panel-2)}
+.legend-list{display:flex;flex-direction:column;gap:3px}
+.legend-list .row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);padding:1px 0}
+.legend-list .row .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.legend-list .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+#regions-bar{display:none;flex-wrap:wrap;gap:6px;align-items:center;
+  padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.rchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+  border-radius:999px;padding:3px 6px 3px 9px;font-size:11.5px;cursor:pointer;background:var(--panel-2);color:var(--ink)}
+.rchip .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.rchip .x{color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+.rchip .x:hover{color:var(--ink)}
+.rbtn{all:unset;cursor:pointer;font-size:11.5px;color:var(--accent);border:1px solid var(--accent);
+  border-radius:7px;padding:3px 10px}
+.rbtn:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.rbtn.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.de .r{display:grid;grid-template-columns:66px 1fr auto;gap:8px;align-items:center;font-size:12px;padding:1px 0}
+.de .g{font-family:"IBM Plex Mono",monospace;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis}
+.de .lfc{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
+.de .p{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);text-align:right}
+.modal{position:fixed;inset:0;background:rgba(6,10,12,.55);display:none;z-index:50;
+  align-items:center;justify-content:center;padding:24px}
+.modal.open{display:flex}
+.modal .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  max-width:920px;width:100%;max-height:85vh;overflow:auto;padding:20px;box-shadow:var(--shadow)}
+.modal h2{margin:0 0 2px;font-size:15px;color:var(--ink)}
+.modal .close{float:right;all:unset;cursor:pointer;color:var(--muted);font-size:20px;line-height:1}
+.modal .close:hover{color:var(--ink)}
+.ctable{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px}
+.ctable th,.ctable td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+.ctable th:first-child,.ctable td:first-child{text-align:left}
+.ctable td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.ctable thead th{color:var(--ink-2);font-weight:500}
+.rdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.cid{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
+  padding:2px 9px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2);color:var(--ink-2)}
+.chip .sw{width:8px;height:8px;border-radius:2px}
+section.blk{margin-top:16px}
+section.blk > .eyebrow{display:block;margin-bottom:8px}
+.joinkey{border:1px solid var(--border);border-radius:10px;padding:11px 12px;background:var(--panel-2)}
+.joinkey .kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.joinkey .kv + .kv{margin-top:5px}
+.joinkey .k{font-size:11.5px;color:var(--muted)}
+.joinkey .v{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink)}
+.joinkey .tag{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);
+  border-radius:5px;padding:1px 5px;opacity:.9}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{border:1px solid var(--border);border-radius:10px;padding:9px 10px;background:var(--panel-2)}
+.stat .num{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500;color:var(--ink);line-height:1.1}
+.stat .lab{font-size:10.5px;color:var(--muted);margin-top:3px}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:74px 1fr auto;align-items:center;gap:8px}
+.bar .g{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:9px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.bar .fill{height:100%;border-radius:3px}
+.bar .val{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);min-width:22px;text-align:right}
+.tcr{display:flex;gap:7px;flex-wrap:wrap}
+.tcr .none{color:var(--muted);font-size:12px}
+.morph{border:1px dashed var(--border);border-radius:12px;padding:18px 14px;text-align:center;background:var(--panel-2)}
+.morph .ic{width:34px;height:34px;margin:0 auto 8px;color:var(--muted)}
+.morph .t{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.morph .d{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+.morph.filled{padding:12px;text-align:left;border-style:solid}
+.morphrow{display:flex;gap:13px;align-items:center}
+.morphrow canvas{width:112px;height:112px;flex:none;border-radius:9px;
+  background:var(--scope);border:1px solid var(--border)}
+.mstat{display:flex;flex-direction:column;gap:5px;min-width:0}
+.mstat .r{display:flex;justify-content:space-between;gap:16px;font-size:12px}
+.mstat .r .k{color:var(--muted)}
+.mstat .r .v{font-family:"IBM Plex Mono",monospace;color:var(--ink);font-variant-numeric:tabular-nums}
+.mcap{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);margin-top:9px}
+#stain-lab{color:var(--accent);font-weight:500}
+footer{padding:8px 18px;border-top:1px solid var(--border);background:var(--panel);
+  font-size:11px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+footer b{color:var(--ink-2);font-weight:500}
+@media (max-width:820px){
+  #view-explore{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  aside{border-left:none;border-top:1px solid var(--border);max-height:44vh}
+  header{gap:10px}
+  .grow{flex-basis:100%;order:5}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <div class="brand">
+    <h1>Tessera</h1>
+    <div class="sub"><b id="ncells">—</b> nuclei · paired morphology + multi-omics</div>
+  </div>
+  <div class="seg tabs" role="tablist" aria-label="View">
+    <button id="tab-explore" role="tab" aria-pressed="true">Explore</button>
+    <button id="tab-table" role="tab" aria-pressed="false">Table</button>
+  </div>
+  <div class="grow"></div>
+  <div id="explore-tools" class="tools">
+    <div class="seg" role="group" aria-label="Embedding">
+      <button id="emb-spatial" aria-pressed="true">Spatial</button>
+      <button id="emb-umap" aria-pressed="false">UMAP</button>
+    </div>
+    <div class="seg" role="group" aria-label="Tool">
+      <button id="mode-pan" aria-pressed="true">Pan</button>
+      <button id="mode-lasso" aria-pressed="false">Lasso</button>
+    </div>
+    <button class="rbtn" id="ab-toggle">Compare A/B</button>
+    <div class="field">
+      <label for="colorby">Colour by</label>
+      <select id="colorby"></select>
+    </div>
+    <div class="field">
+      <label for="gene-input">Gene</label>
+      <input id="gene-input" type="search" placeholder="loading…" autocomplete="off" spellcheck="false" list="gene-list">
+      <datalist id="gene-list"></datalist>
+    </div>
+    <button class="icon-btn" id="reset" title="Reset view" aria-label="Reset view">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-1.6 5"/><path d="M20 4v6h-6"/></svg></button>
+  </div>
+  <div id="table-tools" class="tools" hidden>
+    <input id="tsearch" type="search" placeholder="Search cell ID or type…" aria-label="Search cells">
+    <div class="field"><label for="tlineage">Lineage</label><select id="tlineage"></select></div>
+    <span id="tcount" class="eyebrow"></span>
+  </div>
+  <button class="icon-btn" id="theme" title="Toggle theme" aria-label="Toggle theme">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 20.5a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
+</header>
+
+<main>
+  <div id="view-explore">
+  <div class="scope-wrap">
+    <canvas id="scope"></canvas>
+    <div class="legend" id="legend"></div>
+    <div id="colorbar"><div class="lg-title" id="cbtitle">value</div><div id="cbgrad"></div>
+      <div id="cbscale"><span id="cbmin">0</span><span id="cbmax">1</span></div></div>
+    <div class="overlay mono" id="hint">scroll to zoom · drag to pan · click a nucleus</div>
+    <div id="tooltip"></div>
+  </div>
+
+  <aside id="inspector">
+    <div id="regions-bar"></div>
+    <div id="region-panel" hidden></div>
+    <div id="single-inspector">
+    <div class="insp-head">
+      <span class="cid" id="i-cid">—</span>
+      <span class="chip" id="i-sub"><span class="sw"></span><span>—</span></span>
+    </div>
+
+    <section class="blk">
+      <span class="eyebrow">Location · the join key to imaging</span>
+      <div class="joinkey">
+        <div class="kv"><span class="k">tissue x, y</span><span class="v" id="i-xy">—</span></div>
+        <div class="kv"><span class="k">UMAP</span><span class="v" id="i-umap">—</span></div>
+        <div class="kv"><span class="k" style="align-self:center">morphology pairs here</span><span class="tag">x,y → image</span></div>
+      </div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">Multi-omic depth</span>
+      <div class="stats">
+        <div class="stat"><div class="num" id="i-umis">—</div><div class="lab">RNA UMIs</div></div>
+        <div class="stat"><div class="num" id="i-genes">—</div><div class="lab">genes</div></div>
+        <div class="stat"><div class="num" id="i-peaks">—</div><div class="lab">ATAC peaks</div></div>
+      </div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">Top expressed genes</span>
+      <div class="bars" id="i-bars"></div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">TCR clonotype</span>
+      <div class="tcr" id="i-tcr"></div>
+    </section>
+
+    <section class="blk">
+      <span class="eyebrow">Morphology <span id="stain-lab"></span></span>
+      <div class="morph" id="morphbox">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2" stroke-dasharray="2 2"/></svg>
+        <div class="t">Awaiting a registered nuclear image</div>
+        <div class="d">This nucleus already carries an (x, y).<br>A co-registered DAPI/H&amp;E image drops<br>morphology straight onto this profile.</div>
+      </div>
+    </section>
+    </div>
+  </aside>
+  </div>
+  <div id="view-table">
+    <div id="morph-note" class="await-note" hidden></div>
+    <div class="table-scroll"><table id="celltable"><thead></thead><tbody></tbody></table></div>
+  </div>
+</main>
+
+<footer>
+  <span>Slide-tags multiome · human melanoma lymph node</span>
+  <span>Tumour nests + immune infiltrate; each nucleus = RNA + ATAC + position</span>
+  <span style="margin-left:auto" class="mono">Tessera</span>
+</footer>
+
+<div class="modal" id="compare-modal"><div class="card">
+  <button class="close" id="compare-close" aria-label="Close">✕</button>
+  <h2>Compare regions</h2>
+  <div id="compare-body"></div>
+</div></div>
+
+<script>
+let DATA=null;
+function bootTessera(d){DATA=d;
+
+const LINEAGE = {tumour_1:'Tumour',tumour_2:'Tumour',T_CD8:'T / NK',T_CD4:'T / NK',T_reg:'T / NK',
+  'mono-mac':'Myeloid',myeloid:'Myeloid',mDC:'Myeloid',pDC:'Myeloid',plasma:'Plasma'};
+const LINEAGE_ORDER=['Tumour','T / NK','Myeloid','Plasma'];
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+function lineageColors(){return {Tumour:css('--tumour'),'T / NK':css('--tnk'),Myeloid:css('--myeloid'),Plasma:css('--plasma')};}
+const SUBTYPE_COLOR={tumour_1:'#F0553B',tumour_2:'#FB8B63',T_CD8:'#2E86FF',T_CD4:'#79BEFF',T_reg:'#B4D9FF',
+  'mono-mac':'#F2C230',myeloid:'#CE9A1E',mDC:'#FFDE86',pDC:'#B0842A',plasma:'#2FD3AA'};
+const VIRIDIS=[[68,1,84],[65,68,135],[42,120,142],[34,168,132],[122,209,81],[253,231,37]];
+function viridis(t){t=Math.max(0,Math.min(1,t));const x=t*5,i=Math.floor(x),f=x-i,a=VIRIDIS[i],b=VIRIDIS[Math.min(5,i+1)];
+  return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;}
+
+const cats=DATA.categories, n=DATA.n;
+document.getElementById('ncells').textContent=n.toLocaleString();
+
+// normalise embeddings to [0,1]
+function norm(arr){let mn=Infinity,mx=-Infinity;for(const v of arr){if(v<mn)mn=v;if(v>mx)mx=v;}
+  const s=mx-mn||1;return {n:arr.map(v=>(v-mn)/s),mn,mx};}
+const SX=norm(DATA.sx),SY=norm(DATA.sy),UX=norm(DATA.ux),UY=norm(DATA.uy);
+const EMB={spatial:{x:SX.n,y:SY.n,flipY:true},umap:{x:UX.n,y:UY.n,flipY:false}};
+
+// colour-by options
+const sel=document.getElementById('colorby');
+[['lineage','Lineage'],['subtype','Cell subtype'],['__umis','RNA depth'],['__peaks','ATAC depth']]
+  .forEach(([v,l])=>sel.add(new Option(l,v)));
+const og=document.createElement('optgroup');og.label='Marker gene';
+Object.keys(DATA.markers).forEach(g=>og.appendChild(new Option(g,'g:'+g)));
+sel.appendChild(og);
+
+let state={emb:'spatial',color:'lineage',k:1,tx:0,ty:0,sel:null,hover:null,off:new Set(),
+  mode:'pan',lasso:[],selection:new Set(),regions:[],
+  abMode:false,regionA:null,regionB:null,abNext:'A'};
+
+const canvas=document.getElementById('scope'),ctx=canvas.getContext('2d');
+let W=0,H=0,dpr=1,pad=44,_lastW=-1,_lastH=-1;
+function resize(){
+  // measure the container (canvas is absolutely positioned, so its bitmap size
+  // can never feed back into layout); skip no-op ticks to avoid resize churn.
+  const r=canvas.parentElement.getBoundingClientRect();
+  const w=Math.round(r.width),h=Math.round(r.height);
+  if(w===_lastW&&h===_lastH)return;
+  _lastW=w;_lastH=h;dpr=window.devicePixelRatio||1;W=w;H=h;
+  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+function project(i){const e=EMB[state.emb];const size=Math.min(W,H);
+  const ox=(W-size)/2,oy=(H-size)/2;
+  let px=ox+pad+e.x[i]*(size-2*pad);
+  let py=oy+pad+(e.flipY?(1-e.y[i]):e.y[i])*(size-2*pad);
+  return [px*state.k+state.tx,py*state.k+state.ty];}
+
+// colour value per cell
+function colorFor(i){
+  const c=state.color;
+  if(c==='lineage')return lineageColors()[LINEAGE[cats[DATA.ct[i]]]];
+  if(c==='subtype')return SUBTYPE_COLOR[cats[DATA.ct[i]]];
+  if(c==='__umis')return viridis(cont.norm[i]);
+  if(c==='__peaks')return viridis(cont.norm[i]);
+  if(c==='__gene')return viridis(cont.norm[i]);
+  if(c[0]==='g')return viridis(cont.norm[i]);
+  return '#888';
+}
+let cont={norm:[],min:0,max:1,label:''};
+function computeCont(){
+  const c=state.color;let arr=null,label='',log=false;
+  if(c==='__umis'){arr=DATA.umis;label='RNA UMIs';log=true;}
+  else if(c==='__peaks'){arr=DATA.npk;label='ATAC peaks';log=true;}
+  else if(c==='__gene'){arr=state.geneArr;label=(state.geneName||'gene')+' (counts)';log=true;}
+  else if(c[0]==='g'){arr=DATA.markers[c.slice(2)];label=c.slice(2)+' (counts)';log=true;}
+  if(!arr){cont={norm:[],min:0,max:1,label:''};return false;}
+  arr=Array.from(arr);
+  const t=arr.map(v=>log?Math.log1p(v):v);let mn=Infinity,mx=-Infinity;
+  for(const v of t){if(v<mn)mn=v;if(v>mx)mx=v;}const s=mx-mn||1;
+  cont={norm:t.map(v=>(v-mn)/s),min:log?Math.expm1(mn):mn,max:log?Math.expm1(mx):mx,label};
+  return true;
+}
+function isOn(i){const ct=cats[DATA.ct[i]];
+  if(state.color==='subtype')return !state.off.has(ct);
+  return !state.off.has(LINEAGE[ct]);}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // faint grid
+  ctx.strokeStyle=css('--scope-grid');ctx.lineWidth=1;
+  const step=Math.max(60,80*state.k);
+  for(let x=(state.tx%step);x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=(state.ty%step);y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  const r=Math.max(1.9,2.8*Math.sqrt(state.k));
+  const categorical=(state.color==='lineage'||state.color==='subtype');
+  // dimmed first
+  for(let i=0;i<n;i++){if(isOn(i))continue;const [x,y]=project(i);
+    if(x<-5||x>W+5||y<-5||y>H+5)continue;
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle='rgba(140,150,155,.10)';ctx.fill();}
+  // active (dim cells outside a lasso selection / A-B compare)
+  const hasSel=state.selection.size>0;
+  const baseA=categorical?.92:.9;
+  const ab=state.abMode;
+  const setA=ab&&state.regionA?new Set(state.regionA):null;
+  const setB=ab&&state.regionB?new Set(state.regionB):null;
+  for(let i=0;i<n;i++){if(!isOn(i))continue;if(i===state.sel&&!ab)continue;const [x,y]=project(i);
+    if(x<-5||x>W+5||y<-5||y>H+5)continue;
+    let fill=colorFor(i),a=baseA;
+    if(ab){a=.1;if(setA&&setA.has(i)){fill=AB_A;a=1;}else if(setB&&setB.has(i)){fill=AB_B;a=1;}}
+    else if(hasSel){a=state.selection.has(i)?1:.1;}
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=fill;ctx.globalAlpha=a;ctx.fill();ctx.globalAlpha=1;}
+  // hover ring
+  if(state.hover!=null&&isOn(state.hover)){const [x,y]=project(state.hover);
+    ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle=css('--scope-strong');ctx.lineWidth=1.5;ctx.stroke();}
+  // single-cell selection ring
+  if(state.sel!=null&&!hasSel){const [x,y]=project(state.sel);
+    ctx.beginPath();ctx.arc(x,y,r+2,0,7);ctx.fillStyle=colorFor(state.sel);ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,r+5,0,7);ctx.strokeStyle=css('--accent');ctx.lineWidth=2;ctx.stroke();}
+  // lasso path being drawn
+  if(state.lasso.length>1){ctx.beginPath();ctx.moveTo(state.lasso[0][0],state.lasso[0][1]);
+    for(let i=1;i<state.lasso.length;i++)ctx.lineTo(state.lasso[i][0],state.lasso[i][1]);
+    ctx.closePath();ctx.fillStyle='rgba(23,194,212,.10)';ctx.fill();
+    ctx.strokeStyle=css('--accent');ctx.lineWidth=1.6;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);}
+}
+
+function nearest(mx,my){let best=-1,bd=14*14;
+  for(let i=0;i<n;i++){if(!isOn(i))continue;const [x,y]=project(i);
+    const d=(x-mx)*(x-mx)+(y-my)*(y-my);if(d<bd){bd=d;best=i;}}return best>=0?best:null;}
+
+// interactions
+let dragging=false,last=[0,0],moved=false,lassoing=false;
+canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(lassoing){state.lasso.push([mx,my]);draw();return;}
+  if(dragging){state.tx+=mx-last[0];state.ty+=my-last[1];last=[mx,my];draw();return;}
+  const h=nearest(mx,my);state.hover=h;
+  const tt=document.getElementById('tooltip');
+  if(h!=null){const ct=cats[DATA.ct[h]];tt.style.display='block';tt.style.left=mx+'px';tt.style.top=my+'px';
+    tt.innerHTML=`<span class="sw" style="background:${colorFor(h)}"></span>${ct}`;}
+  else tt.style.display='none';
+  draw();});
+canvas.addEventListener('mouseleave',()=>{state.hover=null;document.getElementById('tooltip').style.display='none';draw();});
+canvas.addEventListener('mousedown',e=>{const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(state.mode==='lasso'){lassoing=true;state.lasso=[[mx,my]];draw();return;}
+  dragging=true;moved=false;last=[mx,my];});
+window.addEventListener('mousemove',()=>{if(dragging)moved=true;});
+window.addEventListener('mouseup',e=>{
+  if(lassoing){lassoing=false;if(state.lasso.length>2)applyLasso(state.lasso);state.lasso=[];draw();return;}
+  if(dragging&&!moved){const r=canvas.getBoundingClientRect();
+    const h=nearest(e.clientX-r.left,e.clientY-r.top);
+    if(h!=null){state.selection.clear();renderRegion();select(h);}}
+  dragging=false;});
+canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;const f=Math.exp(-e.deltaY*0.0015);
+  const nk=Math.max(0.6,Math.min(40,state.k*f));const ratio=nk/state.k;
+  state.tx=mx-(mx-state.tx)*ratio;state.ty=my-(my-state.ty)*ratio;state.k=nk;draw();},{passive:false});
+
+document.getElementById('reset').onclick=()=>{state.k=1;state.tx=0;state.ty=0;draw();};
+document.getElementById('emb-spatial').onclick=()=>setEmb('spatial');
+document.getElementById('emb-umap').onclick=()=>setEmb('umap');
+function setEmb(e){state.emb=e;state.k=1;state.tx=0;state.ty=0;
+  document.getElementById('emb-spatial').setAttribute('aria-pressed',e==='spatial');
+  document.getElementById('emb-umap').setAttribute('aria-pressed',e==='umap');draw();}
+sel.onchange=()=>{state.color=sel.value;state.off.clear();computeCont();buildLegend();draw();};
+
+// ---- any-gene expression (loaded from companion files) ----
+let EXPR_READY=false, GX_IDX, GX_CNT, GX_PTR, GX_ROW;
+function _b64u8(b){const s=atob(b);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+function _concat(arrs){let n=0;for(const a of arrs)n+=a.length;const o=new Uint8Array(n);let k=0;for(const a of arrs){o.set(a,k);k+=a.length;}return o;}
+function loadExpr(){
+  const gi=document.getElementById('gene-input');
+  if(typeof window.EXPR==='undefined'){gi.placeholder='n/a';gi.disabled=true;return;}
+  const files=[...EXPR.idx_files,...EXPR.cnt_files];let left=files.length;
+  if(!files.length){buildExpr();return;}
+  files.forEach(f=>{const s=document.createElement('script');s.src=f;
+    s.onload=s.onerror=()=>{if(--left===0)buildExpr();};document.body.appendChild(s);});
+}
+function buildExpr(){
+  try{
+    const idxB=_concat(EXPR.idxChunks.map(_b64u8));
+    GX_IDX=new Uint16Array(idxB.buffer,idxB.byteOffset,idxB.length>>1);
+    GX_CNT=_concat(EXPR.cntChunks.map(_b64u8));
+    GX_PTR=new Uint32Array(_b64u8(EXPR.indptr_b64).buffer);
+    GX_ROW={};EXPR.genes.forEach((g,i)=>GX_ROW[g.toUpperCase()]=i);
+    EXPR.idxChunks=null;EXPR.cntChunks=null;
+    EXPR_READY=true;
+    const gi=document.getElementById('gene-input');gi.placeholder='e.g. SOX2';
+    const dl=document.getElementById('gene-list');  // light autocomplete: first 2000 names
+    dl.innerHTML=EXPR.genes.slice(0,2000).map(g=>`<option value="${g}">`).join('');
+  }catch(e){document.getElementById('gene-input').placeholder='load failed';}
+}
+function geneVector(sym){const gi=GX_ROW[sym.toUpperCase()];if(gi==null)return null;
+  const s=GX_PTR[gi],e=GX_PTR[gi+1];const v=new Float32Array(EXPR.n_cells);
+  for(let k=s;k<e;k++)v[GX_IDX[k]]=GX_CNT[k];return v;}
+function geneMsg(m){const h=document.getElementById('hint');h.textContent=m;
+  const gi=document.getElementById('gene-input');gi.classList.add('bad');
+  setTimeout(()=>{gi.classList.remove('bad');setMode(state.mode);},1800);}
+function plotGene(sym){sym=(sym||'').trim();if(!sym)return;
+  if(!EXPR_READY){geneMsg('gene data still loading…');return;}
+  const v=geneVector(sym);
+  if(!v){geneMsg(`"${sym}" not found (not detected in ≥3 nuclei)`);return;}
+  const detected=v.reduce((a,x)=>a+(x>0?1:0),0);
+  state.geneArr=v;state.geneName=sym.toUpperCase();state.color='__gene';
+  sel.selectedIndex=-1;computeCont();buildLegend();draw();
+  document.getElementById('hint').textContent=`${state.geneName}: expressed in ${detected} / ${n} nuclei`;
+}
+document.getElementById('gene-input').addEventListener('keydown',e=>{if(e.key==='Enter')plotGene(e.target.value);});
+document.getElementById('gene-input').addEventListener('change',e=>plotGene(e.target.value));
+
+// ---- lasso selection ----
+function setMode(m){state.mode=m;
+  document.getElementById('mode-pan').setAttribute('aria-pressed',m==='pan');
+  document.getElementById('mode-lasso').setAttribute('aria-pressed',m==='lasso');
+  canvas.style.cursor=(m==='lasso')?'cell':'crosshair';
+  document.getElementById('hint').textContent=(m==='lasso')
+    ? 'draw a loop around cells to select · switch to Pan to zoom'
+    : 'scroll to zoom · drag to pan · click a nucleus · Lasso to select a region';}
+document.getElementById('mode-pan').onclick=()=>setMode('pan');
+document.getElementById('mode-lasso').onclick=()=>setMode('lasso');
+
+function pointInPoly(x,y,poly){let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}
+  return inside;}
+function applyLasso(poly){
+  const arr=[];
+  for(let i=0;i<n;i++){if(!isOn(i))continue;const [x,y]=project(i);
+    if(pointInPoly(x,y,poly))arr.push(i);}
+  if(state.abMode){
+    if(state.abNext==='A'){state.regionA=arr;state.abNext='B';}
+    else{state.regionB=arr;state.abNext='A';}
+    renderAB();
+    document.getElementById('hint').textContent=
+      !state.regionA?'Lasso region A':!state.regionB?'Lasso region B':'A vs B — Swap, Redo, or Clear';
+    return;
+  }
+  state.selection=new Set(arr);state.sel=null;renderRegion();}
+
+const gMean=(f,store)=>{const arr=store&&store[f];if(!arr)return null;
+  let s=0,c=0;for(const v of arr){if(v!=null){s+=v;c++;}}return c?s/c:null;};
+const selMean=(f,store,idx)=>{const arr=store&&store[f];if(!arr)return null;
+  let s=0,c=0;for(const i of idx){const v=arr[i];if(v!=null){s+=v;c++;}}return c?s/c:null;};
+const median=(vals)=>{if(!vals.length)return 0;const a=[...vals].sort((x,y)=>x-y);
+  const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+
+function renderRegion(){
+  const rp=document.getElementById('region-panel'),si=document.getElementById('single-inspector');
+  const idx=[...state.selection];
+  if(idx.length===0){rp.hidden=true;si.hidden=false;return;}
+  rp.hidden=false;si.hidden=true;
+  const pct=(100*idx.length/n).toFixed(1);
+  // composition by subtype (grouped by lineage)
+  const cc={};for(const i of idx){const c=cats[DATA.ct[i]];cc[c]=(cc[c]||0)+1;}
+  const comp=Object.entries(cc).sort((a,b)=>b[1]-a[1]).map(([c,k])=>
+    `<div class="row"><span class="sw" style="background:${SUBTYPE_COLOR[c]}"></span>`+
+    `<span>${c}</span><span class="n">${k} · ${(100*k/idx.length).toFixed(0)}%</span></div>`).join('');
+  // morphology means vs whole dataset
+  const mfeat=[['area','Area','px','m'],['nc_ratio','N:C ratio','','c'],
+    ['circularity','Circularity','','m'],['integrated_intensity','DNA (integ.)','','m']];
+  const morphRows=mfeat.map(([f,lab,u,src])=>{
+    const store=src==='c'?DATA.cellmorph:DATA.morph;
+    const sv=selMean(f,store,idx),gv=gMean(f,store);
+    if(sv==null)return '';
+    const d=gv?(sv-gv)/gv*100:0;
+    const arrow=d>3?'▲':d<-3?'▼':'·';const col=d>3?'#2a8f86':d<-3?'#C2543A':'var(--muted)';
+    const fmt=v=>f==='integrated_intensity'?Math.round(v).toLocaleString():(Math.abs(v)>=20?Math.round(v):v.toFixed(2));
+    return `<div class="r"><span class="k">${lab}</span><span class="v">${fmt(sv)}${u?' '+u:''} `+
+      `<span style="color:${col}">${arrow}${Math.abs(d).toFixed(0)}%</span></span></div>`;}).join('');
+  // depth
+  const umis=median(idx.map(i=>DATA.umis[i])),peaks=median(idx.map(i=>DATA.npk[i]));
+  // differential expression: region vs rest (Wilcoxon rank-sum over the gene panel)
+  const de=deTest(idx, null);
+  const up=de.slice(0,8), down=de.slice(-8).reverse();
+  const deRows=arr=>arr.map(d=>{const col=d.lfc>0?'#2a8f86':'#C2543A';
+    return `<div class="r"><span class="g" title="${d.gene}">${d.gene}</span>`+
+      `<span class="lfc" style="color:${col}">${d.lfc>0?'+':''}${d.lfc.toFixed(2)}</span>`+
+      `<span class="p">p=${fmtP(d.p)}</span></div>`;}).join('');
+
+  rp.innerHTML=`
+    <div class="insp-head">
+      <span class="cid">${idx.length.toLocaleString()} cells</span>
+      <span class="chip">${pct}% of tissue</span>
+      <button class="clearbtn" id="region-clear">Clear</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:9px">
+      <button class="rbtn" id="region-save">Save region</button>
+      <button class="rbtn" id="region-copy">Copy cell IDs</button>
+    </div>
+    <section class="blk"><span class="eyebrow">Composition</span>
+      <div class="legend-list">${comp}</div></section>
+    <section class="blk"><span class="eyebrow">Mean morphology · vs whole dataset</span>
+      <div class="joinkey"><div class="mstat">${morphRows||'<span class="k">no morphology</span>'}</div></div></section>
+    <section class="blk"><span class="eyebrow">Median depth</span>
+      <div class="stats">
+        <div class="stat"><div class="num">${Math.round(umis).toLocaleString()}</div><div class="lab">RNA UMIs</div></div>
+        <div class="stat"><div class="num">${Math.round(peaks).toLocaleString()}</div><div class="lab">ATAC peaks</div></div>
+      </div></section>
+    <section class="blk"><span class="eyebrow">Differential expression · region vs rest</span>
+      <div class="de">${deRows(up)}<div style="height:7px"></div>${deRows(down)}</div>
+      <div class="mcap">log2 fold-change · Wilcoxon rank-sum over ${DATA.deg_genes?DATA.deg_genes.length:0} genes</div></section>`;
+  document.getElementById('region-clear').onclick=()=>{state.selection.clear();renderRegion();draw();};
+  document.getElementById('region-save').onclick=saveRegion;
+  document.getElementById('region-copy').onclick=()=>copyIds(idx);
+}
+
+// ---- differential expression (Wilcoxon rank-sum on the embedded gene panel) ----
+function _normCDF(z){const t=1/(1+0.2316419*Math.abs(z));
+  const d=0.3989423*Math.exp(-z*z/2);
+  let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return z>0?1-p:p;}
+function fmtP(p){if(p===0)return '0';if(p<1e-4)return p.toExponential(0);return p.toFixed(p<0.01?4:3);}
+function _cpm(gene,i){const c=DATA.deg[gene][i];return c/(DATA.umis[i]||1)*1e4;}
+function _rankAvg(vals){ // returns ranks (average ties), input array of {v,k}
+  const idx=vals.map((v,i)=>i).sort((a,b)=>vals[a]-vals[b]);
+  const ranks=new Array(vals.length);
+  let i=0;while(i<idx.length){let j=i;while(j+1<idx.length&&vals[idx[j+1]]===vals[idx[i]])j++;
+    const r=(i+j)/2+1;for(let k=i;k<=j;k++)ranks[idx[k]]=r;i=j+1;}
+  return ranks;}
+function deTest(groupIdx, otherIdx){
+  if(!DATA.deg)return [];
+  const gset=new Set(groupIdx);
+  const bg = otherIdx!==null ? otherIdx : (()=>{const a=[];for(let i=0;i<n;i++)if(!gset.has(i))a.push(i);return a;})();
+  const n1=groupIdx.length, n2=bg.length;
+  if(n1<3||n2<3)return [];
+  const mu=n1*n2/2, sigma=Math.sqrt(n1*n2*(n1+n2+1)/12);
+  const out=[];
+  for(const gene of DATA.deg_genes){
+    const gv=DATA.deg[gene];
+    const all=new Array(n1+n2); let mg=0,mr=0;
+    for(let a=0;a<n1;a++){const i=groupIdx[a];const c=gv[i]/(DATA.umis[i]||1)*1e4;all[a]=c;mg+=c;}
+    for(let b=0;b<n2;b++){const i=bg[b];const c=gv[i]/(DATA.umis[i]||1)*1e4;all[n1+b]=c;mr+=c;}
+    mg/=n1;mr/=n2;
+    const ranks=_rankAvg(all);let R1=0;for(let a=0;a<n1;a++)R1+=ranks[a];
+    const U=R1-n1*(n1+1)/2;const z=(U-mu)/sigma;
+    const p=Math.min(1,2*(1-_normCDF(Math.abs(z))));
+    const lfc=Math.log2((mg+1)/(mr+1));
+    out.push({gene,lfc,p});
+  }
+  return out.sort((a,b)=>b.lfc-a.lfc);
+}
+
+// ---- saved regions + compare + export ----
+const REGION_COLORS=['#17C2D4','#F2C230','#E36FB0','#8B7CF5','#59D46A','#FF8A5B','#4FA8DE','#F25C54'];
+function saveRegion(){
+  if(state.selection.size===0)return;
+  const dflt='Region '+(state.regions.length+1);
+  const name=(prompt('Name this region:',dflt)||dflt).trim();
+  const color=REGION_COLORS[state.regions.length%REGION_COLORS.length];
+  state.regions.push({id:Date.now(),name,color,idx:[...state.selection]});
+  renderRegionsBar();
+}
+function renderRegionsBar(){
+  const bar=document.getElementById('regions-bar');
+  if(state.regions.length===0){bar.style.display='none';bar.innerHTML='';return;}
+  bar.style.display='flex';
+  bar.innerHTML='<span class="eyebrow">Saved</span>'+state.regions.map(rg=>
+    `<span class="rchip" data-id="${rg.id}"><span class="dot" style="background:${rg.color}"></span>`+
+    `${rg.name} <span class="n" style="color:var(--muted)">${rg.idx.length}</span>`+
+    `<span class="x" data-del="${rg.id}">✕</span></span>`).join('')+
+    (state.regions.length>=2?'<button class="rbtn" id="compare-btn">Compare</button>':'');
+  bar.querySelectorAll('.rchip').forEach(ch=>ch.onclick=e=>{
+    if(e.target.dataset.del)return;
+    const rg=state.regions.find(r=>r.id==ch.dataset.id);
+    state.selection=new Set(rg.idx);state.sel=null;renderRegion();draw();});
+  bar.querySelectorAll('.x').forEach(x=>x.onclick=e=>{e.stopPropagation();
+    state.regions=state.regions.filter(r=>r.id!=x.dataset.del);renderRegionsBar();});
+  const cb=document.getElementById('compare-btn');if(cb)cb.onclick=openCompare;
+}
+async function copyIds(idx){
+  const ids=idx.map(i=>DATA.ids[i]).join('\n');
+  try{await navigator.clipboard.writeText(ids);
+    const b=document.getElementById('region-copy');if(b){const t=b.textContent;b.textContent='Copied '+idx.length+' IDs';setTimeout(()=>b.textContent=t,1500);}
+  }catch(e){
+    const w=window.open('','_blank');
+    if(w){w.document.write('<pre>'+ids+'</pre>');}
+    else{prompt('Copy the cell IDs:',ids);}
+  }
+}
+function lineagePct(idx,lin){let k=0;for(const i of idx)if(LINEAGE[cats[DATA.ct[i]]]===lin)k++;return 100*k/idx.length;}
+function openCompare(){
+  const modal=document.getElementById('compare-modal'),body=document.getElementById('compare-body');
+  const regs=state.regions;
+  const metrics=[
+    ['Cells',rg=>rg.idx.length.toLocaleString()],
+    ['% Tumour',rg=>lineagePct(rg.idx,'Tumour').toFixed(0)+'%'],
+    ['% T / NK',rg=>lineagePct(rg.idx,'T / NK').toFixed(0)+'%'],
+    ['% Myeloid',rg=>lineagePct(rg.idx,'Myeloid').toFixed(0)+'%'],
+    ['Nuclear area (px)',rg=>{const v=selMean('area',DATA.morph,rg.idx);return v?Math.round(v):'—';}],
+    ['N:C ratio',rg=>{const v=selMean('nc_ratio',DATA.cellmorph,rg.idx);return v?v.toFixed(2):'—';}],
+    ['DNA (integ.)',rg=>{const v=selMean('integrated_intensity',DATA.morph,rg.idx);return v?Math.round(v).toLocaleString():'—';}],
+    ['Median RNA UMIs',rg=>Math.round(median(rg.idx.map(i=>DATA.umis[i]))).toLocaleString()],
+    ['Median ATAC peaks',rg=>Math.round(median(rg.idx.map(i=>DATA.npk[i]))).toLocaleString()],
+  ];
+  let html='<table class="ctable"><thead><tr><th>Metric</th>'+
+    regs.map(rg=>`<th class="num"><span class="rdot" style="background:${rg.color}"></span>${rg.name}</th>`).join('')+
+    '</tr></thead><tbody>'+
+    metrics.map(([lab,fn])=>`<tr><td>${lab}</td>`+regs.map(rg=>`<td class="num">${fn(rg)}</td>`).join('')+'</tr>').join('')+
+    '</tbody></table>';
+  if(regs.length===2){
+    const de=deTest(regs[0].idx,regs[1].idx);
+    const up=de.slice(0,8),down=de.slice(-8).reverse();
+    const row=d=>{const col=d.lfc>0?regs[0].color:regs[1].color;
+      return `<div class="r"><span class="g">${d.gene}</span><span class="lfc" style="color:${col}">${d.lfc>0?'+':''}${d.lfc.toFixed(2)}</span><span class="p">p=${fmtP(d.p)}</span></div>`;};
+    html+=`<h2 style="margin-top:18px">Differential expression · ${regs[0].name} vs ${regs[1].name}</h2>`+
+      `<div class="de" style="max-width:420px">${up.map(row).join('')}<div style="height:7px"></div>${down.map(row).join('')}</div>`+
+      `<div class="mcap">log2FC (+ = up in ${regs[0].name}) · Wilcoxon over ${DATA.deg_genes.length} genes</div>`;
+  }
+  body.innerHTML=html;modal.classList.add('open');
+}
+document.getElementById('compare-close').onclick=()=>document.getElementById('compare-modal').classList.remove('open');
+document.getElementById('compare-modal').onclick=e=>{if(e.target.id==='compare-modal')e.currentTarget.classList.remove('open');};
+
+// ---- direct A / B compare (two lassos) ----
+const AB_A='#17C2D4', AB_B='#F2A03D';
+function toggleAB(){state.abMode?exitAB():enterAB();}
+function enterAB(){state.abMode=true;state.regionA=null;state.regionB=null;state.abNext='A';
+  state.selection.clear();state.sel=null;
+  document.getElementById('ab-toggle').classList.add('on');
+  setMode('lasso');renderAB();
+  document.getElementById('hint').textContent='Lasso region A on the plot';draw();}
+function exitAB(){state.abMode=false;state.regionA=null;state.regionB=null;
+  document.getElementById('ab-toggle').classList.remove('on');
+  renderRegion();setMode(state.mode);draw();}
+function renderAB(){
+  const rp=document.getElementById('region-panel'),si=document.getElementById('single-inspector');
+  rp.hidden=false;si.hidden=true;
+  const A=state.regionA,B=state.regionB;
+  const slot=(lab,arr,color,s)=>`<div class="row"><span class="sw" style="background:${color}"></span>`+
+    `<span>${lab}</span><span class="n">${arr?arr.length+' cells':'lasso '+s}</span>`+
+    `<button class="clearbtn" data-redo="${s}" style="margin-left:8px;padding:1px 8px">redo</button></div>`;
+  let html=`<div class="insp-head"><span class="cid">Compare A / B</span>`+
+    `<button class="clearbtn" id="ab-exit">Exit</button></div>`+
+    `<div style="display:flex;gap:8px;margin:9px 0"><button class="rbtn" id="ab-swap">Swap A/B</button>`+
+    `<button class="rbtn" id="ab-clear">Clear</button></div>`+
+    `<section class="blk"><div class="legend-list">`+slot('Region A',A,AB_A,'A')+slot('Region B',B,AB_B,'B')+`</div></section>`;
+  if(A&&A.length&&B&&B.length){
+    const met=[['Cells',r=>r.length.toLocaleString()],
+      ['% Tumour',r=>lineagePct(r,'Tumour').toFixed(0)+'%'],
+      ['% T / NK',r=>lineagePct(r,'T / NK').toFixed(0)+'%'],
+      ['% Myeloid',r=>lineagePct(r,'Myeloid').toFixed(0)+'%'],
+      ['Nuclear area',r=>{const v=selMean('area',DATA.morph,r);return v?Math.round(v):'—';}],
+      ['N:C ratio',r=>{const v=selMean('nc_ratio',DATA.cellmorph,r);return v?v.toFixed(2):'—';}],
+      ['Median UMIs',r=>Math.round(median(r.map(i=>DATA.umis[i]))).toLocaleString()]];
+    html+=`<section class="blk"><span class="eyebrow">Metrics</span><table class="ctable">`+
+      `<thead><tr><th>Metric</th><th class="num"><span class="rdot" style="background:${AB_A}"></span>A</th>`+
+      `<th class="num"><span class="rdot" style="background:${AB_B}"></span>B</th></tr></thead><tbody>`+
+      met.map(([l,fn])=>`<tr><td>${l}</td><td class="num">${fn(A)}</td><td class="num">${fn(B)}</td></tr>`).join('')+
+      `</tbody></table></section>`;
+    const de=deTest(A,B),up=de.slice(0,8),down=de.slice(-8).reverse();
+    const row=d=>{const col=d.lfc>0?AB_A:AB_B;return `<div class="r"><span class="g" title="${d.gene}">${d.gene}</span>`+
+      `<span class="lfc" style="color:${col}">${d.lfc>0?'+':''}${d.lfc.toFixed(2)}</span><span class="p">p=${fmtP(d.p)}</span></div>`;};
+    html+=`<section class="blk"><span class="eyebrow">Differential expression · A vs B</span>`+
+      `<div class="de">${up.map(row).join('')}<div style="height:7px"></div>${down.map(row).join('')}</div>`+
+      `<div class="mcap">+ = higher in A · Wilcoxon over ${DATA.deg_genes?DATA.deg_genes.length:0} genes</div></section>`;
+  }else{
+    html+=`<div class="mcap" style="margin-top:8px">Lasso ${!A?'region A':'region B'} on the plot — both areas colour independently and compare live.</div>`;
+  }
+  rp.innerHTML=html;
+  document.getElementById('ab-exit').onclick=exitAB;
+  document.getElementById('ab-clear').onclick=()=>{state.regionA=null;state.regionB=null;state.abNext='A';
+    document.getElementById('hint').textContent='Lasso region A on the plot';renderAB();draw();};
+  document.getElementById('ab-swap').onclick=()=>{const t=state.regionA;state.regionA=state.regionB;state.regionB=t;renderAB();draw();};
+  rp.querySelectorAll('[data-redo]').forEach(b=>b.onclick=()=>{const s=b.dataset.redo;state.abNext=s;
+    if(s==='A')state.regionA=null;else state.regionB=null;
+    document.getElementById('hint').textContent='Lasso region '+s;renderAB();draw();});
+}
+document.getElementById('ab-toggle').onclick=toggleAB;
+
+// theme
+const root=document.documentElement;
+function applyTheme(t){if(t)root.setAttribute('data-theme',t);draw();}
+document.getElementById('theme').onclick=()=>{
+  const cur=root.getAttribute('data-theme');
+  const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  applyTheme(dark?'light':'dark');};
+
+// legend / colorbar
+function buildLegend(){
+  const lg=document.getElementById('legend'),cb=document.getElementById('colorbar');
+  const categorical=(state.color==='lineage'||state.color==='subtype');
+  lg.style.display=categorical?'flex':'none';cb.style.display=categorical?'none':'block';
+  if(!categorical){document.getElementById('cbtitle').textContent=cont.label;
+    document.getElementById('cbgrad').style.background=
+      `linear-gradient(90deg,${VIRIDIS.map((c,i)=>`rgb(${c[0]},${c[1]},${c[2]}) ${i/5*100}%`).join(',')})`;
+    document.getElementById('cbmin').textContent=Math.round(cont.min);
+    document.getElementById('cbmax').textContent=Math.round(cont.max);return;}
+  lg.innerHTML='';
+  const title=document.createElement('div');title.className='lg-title';
+  title.textContent=state.color==='lineage'?'Lineage':'Cell subtype';lg.appendChild(title);
+  const counts={};cats.forEach((c,ci)=>{});const cc=new Array(cats.length).fill(0);
+  for(let i=0;i<n;i++)cc[DATA.ct[i]]++;
+  if(state.color==='lineage'){
+    const lc=lineageColors();
+    LINEAGE_ORDER.forEach(L=>{let tot=0;cats.forEach((c,ci)=>{if(LINEAGE[c]===L)tot+=cc[ci];});
+      lg.appendChild(legendRow(L,lc[L],tot,()=>toggle(L)));});
+  }else{
+    LINEAGE_ORDER.forEach(L=>{cats.forEach((c,ci)=>{if(LINEAGE[c]!==L)return;
+      lg.appendChild(legendRow(c,SUBTYPE_COLOR[c],cc[ci],()=>toggle(c),true));});});
+  }
+}
+function legendRow(name,color,count,onclick,indent){
+  const row=document.createElement('div');row.className='row'+(indent?' indent':'');
+  if(state.off.has(name))row.classList.add('off');
+  row.innerHTML=`<span class="sw" style="background:${color}"></span><span>${name}</span><span class="n">${count}</span>`;
+  row.onclick=onclick;return row;}
+function toggle(name){state.off.has(name)?state.off.delete(name):state.off.add(name);buildLegend();draw();}
+
+// inspector
+function select(i){state.sel=i;const ct=cats[DATA.ct[i]];
+  document.getElementById('i-cid').textContent=DATA.ids?DATA.ids[i]:('nucleus '+i);
+  const sub=document.getElementById('i-sub');
+  sub.querySelector('.sw').style.background=SUBTYPE_COLOR[ct];
+  sub.querySelector('span:last-child').textContent=ct+' · '+LINEAGE[ct];
+  document.getElementById('i-xy').textContent=DATA.sx[i].toFixed(0)+', '+DATA.sy[i].toFixed(0)+' µm';
+  document.getElementById('i-umap').textContent=DATA.ux[i].toFixed(2)+', '+DATA.uy[i].toFixed(2);
+  document.getElementById('i-umis').textContent=DATA.umis[i].toLocaleString();
+  document.getElementById('i-genes').textContent=DATA.genes[i].toLocaleString();
+  document.getElementById('i-peaks').textContent=DATA.npk[i].toLocaleString();
+  const bars=document.getElementById('i-bars');bars.innerHTML='';
+  const top=DATA.top[i],max=Math.max(...top.map(t=>t[1]))||1,col=lineageColors()[LINEAGE[ct]];
+  top.forEach(([g,v])=>{const b=document.createElement('div');b.className='bar';
+    b.innerHTML=`<span class="g" title="${g}">${g}</span><span class="track"><span class="fill" style="width:${Math.max(3,v/max*100)}%;background:${col}"></span></span><span class="val">${v}</span>`;
+    bars.appendChild(b);});
+  const tcr=document.getElementById('i-tcr');tcr.innerHTML='';
+  const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];
+  if(a||b){if(a)tcr.appendChild(chip('α '+a));if(b)tcr.appendChild(chip('β '+b));}
+  else tcr.innerHTML='<span class="none">— no TCR detected</span>';
+  renderMorph(i);
+  draw();}
+function chip(t){const c=document.createElement('span');c.className='chip mono';c.textContent=t;return c;}
+
+// morphology crop panel (populated once a nuclear image is wired in)
+let atlasImg=null;
+if(DATA.atlas){atlasImg=new Image();atlasImg.onload=()=>{if(state.sel!=null)renderMorph(state.sel);};atlasImg.src=DATA.atlas;}
+function renderMorph(i){
+  const box=document.getElementById('morphbox');
+  if(!DATA.atlas)return; // keep the "awaiting image" placeholder
+  box.classList.add('filled');
+  const chans=(DATA.crop_channels||[DATA.stain||'stain']).join(' + ');
+  box.innerHTML=`<div class="morphrow"><canvas id="cropcv" width="128" height="128"></canvas>
+    <div class="mstat" id="mstats"></div></div>
+    <div class="mcap">${chans} · ${DATA.morph_source==='synthetic'?'synthetic':'imaged'} · registered to x, y</div>`;
+  const cv=document.getElementById('cropcv'),cx=cv.getContext('2d');
+  cx.imageSmoothingEnabled=true;
+  if(atlasImg&&atlasImg.complete){const cs=DATA.crop_px,cols=DATA.atlas_cols;
+    const sx=(i%cols)*cs,sy=Math.floor(i/cols)*cs;
+    cx.clearRect(0,0,128,128);
+    cx.drawImage(atlasImg,sx,sy,cs,cs,0,0,128,128);}  // atlas already coloured (R=nucleus, G=membrane)
+  const rows=[['area','Area','px','m'],['circularity','Circularity','','m'],
+    ['integrated_intensity','DNA (integ.)','','m'],['nc_ratio','N:C ratio','','c'],
+    ['cell_area','Cell area','px','c']];
+  const ms=document.getElementById('mstats');ms.innerHTML='';
+  rows.forEach(([f,lab,u,src])=>{const store=(src==='c')?DATA.cellmorph:DATA.morph;
+    const v=(store&&store[f])?store[f][i]:null;if(v==null)return;
+    const disp=(f==='integrated_intensity')?Math.round(v).toLocaleString():v;
+    ms.innerHTML+=`<div class="r"><span class="k">${lab}</span><span class="v">${disp}${u?' '+u:''}</span></div>`;});
+}
+
+// ---- table / cell database ----
+const MORPH_SCHEMA=[['area','Area (px)'],['eccentricity','Eccentricity'],['solidity','Solidity'],
+  ['axis_major_length','Major axis'],['intensity_mean','Intensity']];
+const hasMorph=!!(DATA.morph_features&&DATA.morph_features.length);
+const morphCols=hasMorph?DATA.morph_features.map(f=>[f,f.replace(/_/g,' ')]):MORPH_SCHEMA;
+function mval(f,i){return (DATA.morph&&DATA.morph[f]&&DATA.morph[f][i]!=null)?DATA.morph[f][i]:null;}
+
+const COLS=[
+ {k:'id',g:'Identity',label:'Cell ID',cls:'idcol',get:i=>DATA.ids[i],sort:i=>DATA.ids[i]},
+ {k:'ct',g:'Identity',label:'Cell type',html:i=>{const c=cats[DATA.ct[i]];
+   return `<span class="lincell"><span class="sw" style="background:${SUBTYPE_COLOR[c]}"></span>${c}</span>`;},sort:i=>cats[DATA.ct[i]]},
+ {k:'lin',g:'Identity',label:'Lineage',get:i=>LINEAGE[cats[DATA.ct[i]]],sort:i=>LINEAGE[cats[DATA.ct[i]]]},
+ {k:'x',g:'Location',label:'x (µm)',num:true,get:i=>DATA.sx[i].toFixed(0),sort:i=>DATA.sx[i]},
+ {k:'y',g:'Location',label:'y (µm)',num:true,get:i=>DATA.sy[i].toFixed(0),sort:i=>DATA.sy[i]},
+ {k:'u1',g:'Location',label:'UMAP-1',num:true,get:i=>DATA.ux[i].toFixed(2),sort:i=>DATA.ux[i]},
+ {k:'u2',g:'Location',label:'UMAP-2',num:true,get:i=>DATA.uy[i].toFixed(2),sort:i=>DATA.uy[i]},
+ ...morphCols.map(([f,lab])=>({k:'m_'+f,g:'Morphology',label:lab,num:true,
+    get:i=>{const v=mval(f,i);return v==null?null:''+v;},
+    sort:i=>{const v=mval(f,i);return v==null?-Infinity:v;}})),
+ ...((DATA.cell_features)||[]).map(f=>({k:'c_'+f,g:'Cell',
+    label:f.replace(/^cell_/,'cell ').replace(/_/g,' '),num:true,
+    get:i=>{const v=(DATA.cellmorph&&DATA.cellmorph[f])?DATA.cellmorph[f][i]:null;return v==null?null:''+v;},
+    sort:i=>{const v=(DATA.cellmorph&&DATA.cellmorph[f])?DATA.cellmorph[f][i]:null;return v==null?-Infinity:v;}})),
+ {k:'umis',g:'Multi-omics',label:'RNA UMIs',num:true,get:i=>DATA.umis[i],sort:i=>DATA.umis[i]},
+ {k:'genes',g:'Multi-omics',label:'Genes',num:true,get:i=>DATA.genes[i],sort:i=>DATA.genes[i]},
+ {k:'peaks',g:'Multi-omics',label:'ATAC peaks',num:true,get:i=>DATA.npk[i],sort:i=>DATA.npk[i]},
+ {k:'top',g:'Multi-omics',label:'Top gene',get:i=>DATA.top[i][0]?DATA.top[i][0][0]:null,
+   sort:i=>DATA.top[i][0]?DATA.top[i][0][0]:''},
+ {k:'tcr',g:'Multi-omics',label:'TCR',
+   get:i=>{const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];
+     return [a?'α':'',b?'β':''].filter(Boolean).join('/')||null;},
+   sort:i=>{const a=DATA.tcr_a&&DATA.tcr_a[i],b=DATA.tcr_b&&DATA.tcr_b[i];return (a?2:0)+(b?1:0);}},
+];
+let sortState={k:null,dir:1},tableBuilt=false;
+const gid=g=>g.replace(/[^A-Za-z]/g,'');
+
+function buildTableHead(){
+  const thead=document.querySelector('#celltable thead');
+  const groups=[];let last=null;
+  COLS.forEach(c=>{if(!last||last.g!==c.g){last={g:c.g,span:1};groups.push(last);}else last.span++;});
+  const gRow='<tr class="groups">'+groups.map(gp=>`<th colspan="${gp.span}" class="g-${gid(gp.g)}">${gp.g}</th>`).join('')+'</tr>';
+  const cRow='<tr class="cols">'+COLS.map(c=>{
+    const ar=sortState.k===c.k?`<span class="ar">${sortState.dir>0?'▲':'▼'}</span>`:'';
+    return `<th class="${c.num?'num ':''}g-${gid(c.g)}" data-k="${c.k}">${c.label}${ar}</th>`;}).join('')+'</tr>';
+  thead.innerHTML=gRow+cRow;
+  thead.querySelectorAll('tr.cols th').forEach(th=>{th.onclick=()=>{
+    const k=th.dataset.k;if(sortState.k===k)sortState.dir*=-1;else{sortState.k=k;sortState.dir=1;}
+    buildTableHead();renderRows();};});
+}
+function currentRows(){
+  const q=(document.getElementById('tsearch').value||'').toLowerCase();
+  const lin=document.getElementById('tlineage').value;
+  const idx=[];
+  for(let i=0;i<n;i++){const c=cats[DATA.ct[i]];
+    if(lin!=='all'&&LINEAGE[c]!==lin)continue;
+    if(q&&!(DATA.ids[i].toLowerCase().includes(q)||c.toLowerCase().includes(q)))continue;
+    idx.push(i);}
+  if(sortState.k){const col=COLS.find(c=>c.k===sortState.k);
+    idx.sort((a,b)=>{const va=col.sort(a),vb=col.sort(b);return (va<vb?-1:va>vb?1:0)*sortState.dir;});}
+  return idx;
+}
+function renderRows(){
+  const idx=currentRows(),tb=document.querySelector('#celltable tbody'),rows=new Array(idx.length);
+  for(let r=0;r<idx.length;r++){const i=idx[r];let tds='';
+    for(const c of COLS){
+      if(c.html){tds+='<td>'+c.html(i)+'</td>';continue;}
+      const v=c.get(i);
+      const disp=(v==null||v==='')?'<span class="dash">—</span>':v;
+      tds+=`<td class="${c.num?'num':''} ${c.cls||''}">${disp}</td>`;}
+    rows[r]=`<tr data-i="${i}"${i===state.sel?' class="sel"':''}>${tds}</tr>`;}
+  tb.innerHTML=rows.join('');
+  document.getElementById('tcount').textContent=idx.length.toLocaleString()+' of '+n.toLocaleString()+' cells';
+}
+function buildTable(){if(!tableBuilt){buildTableHead();tableBuilt=true;}renderRows();}
+
+document.querySelector('#celltable tbody').addEventListener('click',e=>{
+  const tr=e.target.closest('tr[data-i]');if(!tr)return;
+  select(+tr.dataset.i);setTab('explore');});
+document.getElementById('tsearch').addEventListener('input',renderRows);
+
+// tabs
+function setTab(t){const ex=t==='explore';
+  document.getElementById('view-explore').style.display=ex?'grid':'none';
+  document.getElementById('view-table').style.display=ex?'none':'flex';
+  document.getElementById('explore-tools').hidden=!ex;
+  document.getElementById('table-tools').hidden=ex;
+  document.getElementById('tab-explore').setAttribute('aria-pressed',ex);
+  document.getElementById('tab-table').setAttribute('aria-pressed',!ex);
+  if(ex)requestAnimationFrame(resize);else buildTable();}
+document.getElementById('tab-explore').onclick=()=>setTab('explore');
+document.getElementById('tab-table').onclick=()=>setTab('table');
+
+// table controls: lineage filter + morphology note
+{const tl=document.getElementById('tlineage');tl.add(new Option('All lineages','all'));
+ LINEAGE_ORDER.forEach(L=>tl.add(new Option(L,L)));tl.onchange=renderRows;
+ const note=document.getElementById('morph-note');
+ if(!hasMorph){note.hidden=false;
+   note.textContent='Morphology columns are part of the schema; values fill in once a co-registered nuclear image is paired to these nuclei — the join key is each cell’s x, y.';}
+ else if(DATA.morph_source==='synthetic'){note.hidden=false;
+   note.textContent='Morphology extracted from synthetic '+(DATA.stain||'')+' nuclear images (test), registered to each nucleus’s x, y via the real regionprops pipeline.';}
+ const sl=document.getElementById('stain-lab');if(sl&&DATA.stain)sl.textContent='· '+DATA.stain;}
+
+// init
+computeCont();buildLegend();resize();
+// open in a working state: preselect a representative tumour nucleus
+let seed=0;for(let i=0;i<n;i++){if(cats[DATA.ct[i]]==='tumour_1'){seed=i;break;}}
+select(seed);
+setMode('pan');
+setTab('explore');
+loadExpr();
+}
+</script>
+
+<div id="drop-overlay">
+  <div id="dropzone">
+    <div class="dz-title">Tessera viewer</div>
+    <div class="dz-sub">Drop a Tessera bundle <code>.json</code> to explore it — spatial &amp; UMAP, cell table, lasso, differential expression, A/B compare.</div>
+    <label class="dz-btn" for="drop-file">Choose file…</label>
+    <input id="drop-file" type="file" accept=".json,application/json" hidden>
+    <button class="dz-demo" id="drop-demo">Load demo dataset</button>
+    <div class="dz-msg" id="drop-msg"></div>
+    <div class="dz-foot">Make a bundle from any <code>.tessera</code>: <code>python demo/export_bundle.py in.tessera out.tessera.json</code> · nothing is uploaded to a server — the file is read in your browser.</div>
+  </div>
+</div>
+<style>
+#drop-overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);padding:24px}
+#dropzone{max-width:520px;width:100%;border:1.5px dashed var(--border);border-radius:16px;
+  background:var(--panel);box-shadow:var(--shadow);padding:34px 30px;text-align:center}
+#dropzone.over{border-color:var(--accent);background:var(--panel-2)}
+.dz-title{font-size:20px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.dz-sub{font-size:13px;color:var(--muted);margin:8px auto 20px;max-width:400px;line-height:1.5}
+.dz-btn{display:inline-block;cursor:pointer;background:var(--accent);color:var(--accent-ink);
+  font-weight:500;font-size:13px;padding:9px 18px;border-radius:9px}
+.dz-btn:hover{filter:brightness(1.05)}
+.dz-demo{margin-left:10px;cursor:pointer;background:var(--panel-2);color:var(--ink-2);
+  border:1px solid var(--border);font-family:inherit;font-size:13px;padding:9px 16px;border-radius:9px}
+.dz-demo:hover{color:var(--ink)}
+.dz-msg{font-size:12px;color:#C2543A;margin-top:14px;min-height:16px}
+.dz-foot{font-size:11px;color:var(--muted);margin-top:22px;line-height:1.5}
+.dz-foot code{font-family:"IBM Plex Mono",monospace;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+</style>
+<script>
+(function(){
+  const ov=document.getElementById('drop-overlay');
+  const msg=document.getElementById('drop-msg');
+  function boot(d){try{ov.style.display='none';bootTessera(d);}catch(e){ov.style.display='flex';msg.textContent='Could not open: '+e.message;}}
+  function readFile(file){const fr=new FileReader();
+    fr.onerror=()=>msg.textContent='Could not read the file.';
+    fr.onload=()=>{try{boot(JSON.parse(fr.result));}catch(e){msg.textContent='Not a valid Tessera bundle JSON: '+e.message;}};
+    fr.readAsText(file);}
+  document.getElementById('drop-file').addEventListener('change',e=>{if(e.target.files[0])readFile(e.target.files[0]);});
+  const dz=document.getElementById('dropzone');
+  ['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));
+  ['dragleave','dragend'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over');}));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');
+    const f=e.dataTransfer.files[0];if(f)readFile(f);});
+  document.getElementById('drop-demo').addEventListener('click',()=>{
+    msg.textContent='loading demo…';
+    if(window.DEMO_BUNDLE){boot(window.DEMO_BUNDLE);return;}
+    const s=document.createElement('script');s.src='demo_bundle.js';
+    s.onload=()=>window.DEMO_BUNDLE?boot(window.DEMO_BUNDLE):(msg.textContent='demo unavailable');
+    s.onerror=()=>msg.textContent='demo unavailable';document.body.appendChild(s);});
+})();
+</script>
