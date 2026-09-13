@@ -52,6 +52,80 @@ p.get_crop(p.cell_ids[0])     # instant crop access
 p.catalogue_table()           # per-cell-type counts + mean morphology
 ```
 
+## Loading your own data
+
+### What data is needed
+
+| | Field | Notes |
+|---|---|---|
+| **Required** | omics matrix | one row per nucleus (e.g. RNA counts, cells × genes) |
+| **Required** | spatial (x, y) | per-nucleus tissue coordinates — the join key to imaging |
+| Recommended | `cell_type` | per-nucleus labels (drives colouring/composition) |
+| Recommended | embedding | a 2-D UMAP/embedding per nucleus |
+| Optional | ATAC | second modality, peaks × cells (any extra modality works) |
+| Optional | TCR / metadata | any extra per-nucleus columns |
+| Optional | imaging | a registered nuclear image **+ segmentation mask** → real morphology |
+
+Morphology is optional and designed-in: everything works without an image; when a
+co-registered nuclear image arrives, morphology fills in per nucleus **via the
+spatial coordinate**.
+
+### Three ways to load
+
+**1. From an AnnData** (scanpy / scverse) — just needs `obsm['spatial']`:
+
+```python
+from tessera.ingest import from_anndata
+p = from_anndata(adata)                 # uses obs['cell_type'], obsm['X_umap'] if present
+p = from_anndata(adata, atac=atac_adata)  # optional second modality
+p.save("mydata.tessera")
+```
+
+**2. From plain arrays / matrices:**
+
+```python
+from tessera.ingest import build_paired
+p = build_paired(rna, var_names, cell_ids, spatial,
+                 cell_type=labels, umap=umap, atac=atac, atac_peaks=peak_ids)
+p.save("mydata.tessera")
+```
+
+**3. From a slide-tags / SCP directory** (SCP2176 layout — 10x `matrix.mtx`
+triplet, `*_spatial.csv`, `*_cluster.csv`, metadata, ATAC csv, TCR):
+
+```python
+from tessera.ingest import load_slidetags
+p = load_slidetags("path/to/SCP_dir", prefix="HumanMelanomaMultiome")
+p.save("mydata.tessera")
+```
+
+### Add real morphology from imaging
+
+```python
+from tessera.ingest import attach_morphology_from_mask
+attach_morphology_from_mask(p, nuclear_image="dapi.tif", labels="mask.tif",
+                            um_per_px=0.5, origin=(x0, y0))   # joins by tissue coord
+p.save("mydata.tessera")
+```
+
+(no image yet? `synthesize_nuclear_image(p)` fabricates a 7-AAD test image to
+exercise the pipeline.)
+
+### View it
+
+```bash
+# desktop (any gene/peak, full data in memory):
+PYTHONPATH=src python -m tessera.viewer.napari_view mydata.tessera
+
+# shareable web viewer (generates a self-contained page + companion files):
+python demo/export_web.py mydata.tessera web/viewer_template.html out/index.html
+```
+
+The web viewer bakes one dataset into a page (data ships with it), so a new
+dataset means re-running `export_web.py` and publishing a new page — there is no
+"upload" button on the hosted page. The desktop napari viewer reads any
+`.tessera` bundle directly.
+
 ## Roadmap
 
 - [x] **Phase 1** — paired container + catalogue + morphology extraction
