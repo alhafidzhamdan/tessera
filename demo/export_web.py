@@ -4,6 +4,7 @@ into the HTML template to produce a self-contained index.html.
     python demo/export_web.py <bundle> <template.html> <out.html>
 """
 import json
+import os
 import sys
 
 import numpy as np
@@ -22,6 +23,60 @@ MARKERS = [
     "LYZ", "CD68", "CD14", "ITGAX", "C1QA", "FCGR3A", "CLEC9A", "LILRA4", "CLEC4C",
     "PTPRC",
 ]
+
+
+def write_expression_files(out_dir, X, var_names, min_cells=3, chunk_chars=14_000_000):
+    """Write the full sparse RNA matrix as companion JS files for gene search.
+
+    Encoding: CSC over genes detected in >= min_cells; concatenated uint16 cell
+    indices + uint8 counts (lossless for snRNA counts), plus a uint32 indptr, all
+    base64. Big base64 arrays are split into <=chunk_chars pieces so no single file
+    exceeds the artifact per-file cap. Returns {published_name: source_path}.
+    """
+    import base64
+
+    Xc = X.tocsc()
+    det = np.asarray((Xc > 0).sum(0)).ravel()
+    keep = np.where(det >= min_cells)[0]
+    genes = [var_names[i] for i in keep]
+    idx_parts, cnt_parts, indptr = [], [], [0]
+    for gi in keep:
+        s, e = Xc.indptr[gi], Xc.indptr[gi + 1]
+        idx_parts.append(Xc.indices[s:e].astype("<u2"))
+        cnt_parts.append(np.clip(Xc.data[s:e], 0, 255).astype(np.uint8))
+        indptr.append(indptr[-1] + int(e - s))
+    idx = np.concatenate(idx_parts) if idx_parts else np.array([], "<u2")
+    cnt = np.concatenate(cnt_parts) if cnt_parts else np.array([], np.uint8)
+    indptr = np.asarray(indptr, dtype="<u4")
+
+    def shard(b64, prefix, arrname):
+        names = []
+        for j in range(0, len(b64), chunk_chars):
+            nm = f"{prefix}_{j // chunk_chars}.js"
+            path = os.path.join(out_dir, nm)
+            with open(path, "w") as fh:
+                fh.write(f'window.EXPR.{arrname}.push("{b64[j:j+chunk_chars]}");')
+            names.append(nm)
+        return names
+
+    idx_files = shard(base64.b64encode(idx.tobytes()).decode(), "expr_idx", "idxChunks")
+    cnt_files = shard(base64.b64encode(cnt.tobytes()).decode(), "expr_cnt", "cntChunks")
+
+    meta = {
+        "n_cells": int(X.shape[0]), "genes": genes,
+        "indptr_b64": base64.b64encode(indptr.tobytes()).decode(),
+        "idx_files": idx_files, "cnt_files": cnt_files,
+    }
+    files = {"expr_meta.js": os.path.join(out_dir, "expr_meta.js")}
+    with open(files["expr_meta.js"], "w") as fh:
+        fh.write("window.EXPR=" + json.dumps(meta, separators=(",", ":")) +
+                 ";window.EXPR.idxChunks=[];window.EXPR.cntChunks=[];")
+    for nm in idx_files + cnt_files:
+        files[nm] = os.path.join(out_dir, nm)
+    total = sum(os.path.getsize(p) for p in files.values()) / 1e6
+    print(f"expression companion: {len(genes)} genes, {idx.size} nonzeros, "
+          f"{len(files)} files, {total:.1f} MB")
+    return files
 
 
 def main(bundle, template, out):
@@ -171,6 +226,9 @@ def main(bundle, template, out):
     mb = len(html.encode()) / 1e6
     print(f"markers embedded: {len(markers)} ({', '.join(markers)})")
     print(f"wrote {out}  ({mb:.2f} MB)")
+
+    files = write_expression_files(os.path.dirname(os.path.abspath(out)), X, var_names)
+    print("COMPANION_FILES " + " ".join(sorted(files)))
 
 
 if __name__ == "__main__":

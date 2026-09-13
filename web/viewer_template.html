@@ -79,6 +79,10 @@ select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 #tsearch{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
   border:1px solid var(--border);border-radius:8px;padding:6px 11px;width:200px}
 #tsearch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#gene-input{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:8px;padding:5px 10px;width:110px}
+#gene-input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#gene-input.bad{border-color:#C2543A}
 #tcount{white-space:nowrap}
 
 /* ---- main ---- */
@@ -263,6 +267,11 @@ footer b{color:var(--ink-2);font-weight:500}
       <label for="colorby">Colour by</label>
       <select id="colorby"></select>
     </div>
+    <div class="field">
+      <label for="gene-input">Gene</label>
+      <input id="gene-input" type="search" placeholder="loading…" autocomplete="off" spellcheck="false" list="gene-list">
+      <datalist id="gene-list"></datalist>
+    </div>
     <button class="icon-btn" id="reset" title="Reset view" aria-label="Reset view">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-1.6 5"/><path d="M20 4v6h-6"/></svg></button>
   </div>
@@ -353,6 +362,7 @@ footer b{color:var(--ink-2);font-weight:500}
   <div id="compare-body"></div>
 </div></div>
 
+<script src="expr_meta.js"></script>
 <script>
 const DATA = __TESSERA_DATA__;
 
@@ -413,6 +423,7 @@ function colorFor(i){
   if(c==='subtype')return SUBTYPE_COLOR[cats[DATA.ct[i]]];
   if(c==='__umis')return viridis(cont.norm[i]);
   if(c==='__peaks')return viridis(cont.norm[i]);
+  if(c==='__gene')return viridis(cont.norm[i]);
   if(c[0]==='g')return viridis(cont.norm[i]);
   return '#888';
 }
@@ -421,8 +432,10 @@ function computeCont(){
   const c=state.color;let arr=null,label='',log=false;
   if(c==='__umis'){arr=DATA.umis;label='RNA UMIs';log=true;}
   else if(c==='__peaks'){arr=DATA.npk;label='ATAC peaks';log=true;}
+  else if(c==='__gene'){arr=state.geneArr;label=(state.geneName||'gene')+' (counts)';log=true;}
   else if(c[0]==='g'){arr=DATA.markers[c.slice(2)];label=c.slice(2)+' (counts)';log=true;}
   if(!arr){cont={norm:[],min:0,max:1,label:''};return false;}
+  arr=Array.from(arr);
   const t=arr.map(v=>log?Math.log1p(v):v);let mn=Infinity,mx=-Infinity;
   for(const v of t){if(v<mn)mn=v;if(v>mx)mx=v;}const s=mx-mn||1;
   cont={norm:t.map(v=>(v-mn)/s),min:log?Math.expm1(mn):mn,max:log?Math.expm1(mx):mx,label};
@@ -506,6 +519,50 @@ function setEmb(e){state.emb=e;state.k=1;state.tx=0;state.ty=0;
   document.getElementById('emb-spatial').setAttribute('aria-pressed',e==='spatial');
   document.getElementById('emb-umap').setAttribute('aria-pressed',e==='umap');draw();}
 sel.onchange=()=>{state.color=sel.value;state.off.clear();computeCont();buildLegend();draw();};
+
+// ---- any-gene expression (loaded from companion files) ----
+let EXPR_READY=false, GX_IDX, GX_CNT, GX_PTR, GX_ROW;
+function _b64u8(b){const s=atob(b);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+function _concat(arrs){let n=0;for(const a of arrs)n+=a.length;const o=new Uint8Array(n);let k=0;for(const a of arrs){o.set(a,k);k+=a.length;}return o;}
+function loadExpr(){
+  const gi=document.getElementById('gene-input');
+  if(typeof window.EXPR==='undefined'){gi.placeholder='n/a';gi.disabled=true;return;}
+  const files=[...EXPR.idx_files,...EXPR.cnt_files];let left=files.length;
+  if(!files.length){buildExpr();return;}
+  files.forEach(f=>{const s=document.createElement('script');s.src=f;
+    s.onload=s.onerror=()=>{if(--left===0)buildExpr();};document.body.appendChild(s);});
+}
+function buildExpr(){
+  try{
+    const idxB=_concat(EXPR.idxChunks.map(_b64u8));
+    GX_IDX=new Uint16Array(idxB.buffer,idxB.byteOffset,idxB.length>>1);
+    GX_CNT=_concat(EXPR.cntChunks.map(_b64u8));
+    GX_PTR=new Uint32Array(_b64u8(EXPR.indptr_b64).buffer);
+    GX_ROW={};EXPR.genes.forEach((g,i)=>GX_ROW[g.toUpperCase()]=i);
+    EXPR.idxChunks=null;EXPR.cntChunks=null;
+    EXPR_READY=true;
+    const gi=document.getElementById('gene-input');gi.placeholder='e.g. SOX2';
+    const dl=document.getElementById('gene-list');  // light autocomplete: first 2000 names
+    dl.innerHTML=EXPR.genes.slice(0,2000).map(g=>`<option value="${g}">`).join('');
+  }catch(e){document.getElementById('gene-input').placeholder='load failed';}
+}
+function geneVector(sym){const gi=GX_ROW[sym.toUpperCase()];if(gi==null)return null;
+  const s=GX_PTR[gi],e=GX_PTR[gi+1];const v=new Float32Array(EXPR.n_cells);
+  for(let k=s;k<e;k++)v[GX_IDX[k]]=GX_CNT[k];return v;}
+function geneMsg(m){const h=document.getElementById('hint');h.textContent=m;
+  const gi=document.getElementById('gene-input');gi.classList.add('bad');
+  setTimeout(()=>{gi.classList.remove('bad');setMode(state.mode);},1800);}
+function plotGene(sym){sym=(sym||'').trim();if(!sym)return;
+  if(!EXPR_READY){geneMsg('gene data still loading…');return;}
+  const v=geneVector(sym);
+  if(!v){geneMsg(`"${sym}" not found (not detected in ≥3 nuclei)`);return;}
+  const detected=v.reduce((a,x)=>a+(x>0?1:0),0);
+  state.geneArr=v;state.geneName=sym.toUpperCase();state.color='__gene';
+  sel.selectedIndex=-1;computeCont();buildLegend();draw();
+  document.getElementById('hint').textContent=`${state.geneName}: expressed in ${detected} / ${n} nuclei`;
+}
+document.getElementById('gene-input').addEventListener('keydown',e=>{if(e.key==='Enter')plotGene(e.target.value);});
+document.getElementById('gene-input').addEventListener('change',e=>plotGene(e.target.value));
 
 // ---- lasso selection ----
 function setMode(m){state.mode=m;
@@ -902,4 +959,5 @@ let seed=0;for(let i=0;i<n;i++){if(cats[DATA.ct[i]]==='tumour_1'){seed=i;break;}
 select(seed);
 setMode('pan');
 setTab('explore');
+loadExpr();
 </script>
