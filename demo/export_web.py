@@ -63,6 +63,25 @@ def main(bundle, template, out):
             col = X[:, var_idx[g]]
             markers[g] = np.asarray(col.todense()).ravel().astype(int).tolist()
 
+    # DE gene panel: curated markers + top-dispersion HVGs, raw counts per cell,
+    # so the browser can run region-vs-rest differential expression on real genes.
+    Xc = X.tocsc()
+    nS = X.shape[0]
+    csum = np.asarray(Xc.sum(0)).ravel()
+    csq = np.asarray(Xc.multiply(Xc).sum(0)).ravel()
+    gmean = csum / nS
+    gvar = csq / nS - gmean ** 2
+    gdet = np.asarray((Xc > 0).sum(0)).ravel()
+    disp = np.divide(gvar, gmean, out=np.zeros_like(gvar), where=gmean > 0)
+    elig = np.where(gdet >= 100)[0]
+    hvg = list(elig[np.argsort(disp[elig])[::-1]][:160])
+    mk = [var_idx[g] for g in MARKERS if g in var_idx]
+    panel = list(dict.fromkeys(hvg + mk))
+    deg = {}
+    for gi in panel:
+        deg[var_names[gi]] = np.asarray(Xc[:, gi].todense()).ravel().astype(int).tolist()
+    print(f"DE panel: {len(deg)} genes")
+
     def tcr(col):
         if col not in obs:
             return None
@@ -113,6 +132,8 @@ def main(bundle, template, out):
             ]
     data["cell_features"] = cell_features
     data["cellmorph"] = cellmorph
+    data["deg_genes"] = [var_names[gi] for gi in panel]
+    data["deg"] = deg
 
     # embed per-nucleus crops as one RGB PNG atlas: nucleus -> red, membrane -> green
     if p.crops is not None:

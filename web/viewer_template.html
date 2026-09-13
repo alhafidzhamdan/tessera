@@ -7,7 +7,7 @@
   --bg:#E9EEEF; --panel:#FFFFFF; --panel-2:#F3F6F7; --border:#D5DEDF;
   --ink:#14242A; --ink-2:#3A4A50; --muted:#697B81;
   --accent:#0EA5B7; --accent-ink:#ffffff;
-  --scope:#0B1013; --scope-grid:rgba(255,255,255,.05); --scope-ink:#8FA0A4;
+  --scope:#F5F8F8; --scope-grid:rgba(20,36,42,.06); --scope-ink:#5A6B72; --scope-strong:#14242A;
   --shadow:0 1px 2px rgba(20,36,42,.06),0 8px 24px rgba(20,36,42,.08);
   --tumour:#F0553B; --tnk:#3E9BFF; --myeloid:#E0A21C; --plasma:#1FB394;
 }
@@ -18,6 +18,7 @@
     --accent:#19C2D4; --accent-ink:#04191c;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
     --myeloid:#F2C230; --plasma:#2FD3AA;
+    --scope:#0B1013; --scope-grid:rgba(255,255,255,.05); --scope-ink:#8FA0A4; --scope-strong:#EAF1F1;
   }
 }
 :root[data-theme="dark"]{
@@ -26,6 +27,7 @@
   --accent:#19C2D4; --accent-ink:#04191c;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
   --myeloid:#F2C230; --plasma:#2FD3AA;
+  --scope:#0B1013; --scope-grid:rgba(255,255,255,.05); --scope-ink:#8FA0A4; --scope-strong:#EAF1F1;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -119,32 +121,32 @@ main{flex:1;min-height:0;position:relative}
 #hint{left:14px;bottom:12px;opacity:.75}
 #tooltip{
   position:absolute;pointer-events:none;z-index:5;display:none;
-  background:rgba(10,16,18,.94);border:1px solid rgba(255,255,255,.14);
-  border-radius:7px;padding:6px 9px;color:#EAF1F1;font-size:12px;
+  background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);
+  border-radius:7px;padding:6px 9px;color:var(--ink);font-size:12px;
   font-family:"IBM Plex Mono",monospace;white-space:nowrap;transform:translate(-50%,-140%)}
 #tooltip .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:baseline}
 
 /* legend */
 .legend{position:absolute;left:14px;top:14px;display:flex;flex-direction:column;gap:6px;
-  background:rgba(10,16,18,.72);backdrop-filter:blur(6px);
-  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;max-width:210px}
+  background:var(--panel);backdrop-filter:blur(6px);box-shadow:var(--shadow);
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;max-width:210px}
 .legend .lg-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
-  text-transform:uppercase;color:#8FA0A4;margin-bottom:1px}
-.legend .row{display:flex;align-items:center;gap:8px;cursor:pointer;color:#D7DEDE;font-size:12px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:1px}
+.legend .row{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink);font-size:12px;
   padding:1px 2px;border-radius:5px;user-select:none}
-.legend .row:hover{background:rgba(255,255,255,.06)}
+.legend .row:hover{background:var(--panel-2)}
 .legend .row.off{opacity:.32}
 .legend .row .sw{width:10px;height:10px;border-radius:3px;flex:none}
-.legend .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:#8FA0A4}
+.legend .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted)}
 .legend .indent{margin-left:6px}
 #colorbar{position:absolute;left:14px;top:14px;display:none;
-  background:rgba(10,16,18,.72);backdrop-filter:blur(6px);
-  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;color:#D7DEDE}
+  background:var(--panel);backdrop-filter:blur(6px);box-shadow:var(--shadow);
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--ink)}
 #colorbar .lg-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
-  text-transform:uppercase;color:#8FA0A4;margin-bottom:6px}
+  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 #cbgrad{width:150px;height:10px;border-radius:3px}
 #cbscale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
-  font-size:10px;color:#8FA0A4;margin-top:3px}
+  font-size:10px;color:var(--muted);margin-top:3px}
 
 /* ---- inspector ---- */
 aside{border-left:1px solid var(--border);background:var(--panel);overflow-y:auto;padding:16px}
@@ -156,6 +158,34 @@ aside{border-left:1px solid var(--border);background:var(--panel);overflow-y:aut
 .legend-list .row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);padding:1px 0}
 .legend-list .row .sw{width:10px;height:10px;border-radius:3px;flex:none}
 .legend-list .row .n{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+#regions-bar{display:none;flex-wrap:wrap;gap:6px;align-items:center;
+  padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.rchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+  border-radius:999px;padding:3px 6px 3px 9px;font-size:11.5px;cursor:pointer;background:var(--panel-2);color:var(--ink)}
+.rchip .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.rchip .x{color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+.rchip .x:hover{color:var(--ink)}
+.rbtn{all:unset;cursor:pointer;font-size:11.5px;color:var(--accent);border:1px solid var(--accent);
+  border-radius:7px;padding:3px 10px}
+.rbtn:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.de .r{display:grid;grid-template-columns:66px 1fr auto;gap:8px;align-items:center;font-size:12px;padding:1px 0}
+.de .g{font-family:"IBM Plex Mono",monospace;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis}
+.de .lfc{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
+.de .p{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);text-align:right}
+.modal{position:fixed;inset:0;background:rgba(6,10,12,.55);display:none;z-index:50;
+  align-items:center;justify-content:center;padding:24px}
+.modal.open{display:flex}
+.modal .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  max-width:920px;width:100%;max-height:85vh;overflow:auto;padding:20px;box-shadow:var(--shadow)}
+.modal h2{margin:0 0 2px;font-size:15px;color:var(--ink)}
+.modal .close{float:right;all:unset;cursor:pointer;color:var(--muted);font-size:20px;line-height:1}
+.modal .close:hover{color:var(--ink)}
+.ctable{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px}
+.ctable th,.ctable td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+.ctable th:first-child,.ctable td:first-child{text-align:left}
+.ctable td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.ctable thead th{color:var(--ink-2);font-weight:500}
+.rdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .cid{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--ink)}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
   padding:2px 9px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2);color:var(--ink-2)}
@@ -257,6 +287,7 @@ footer b{color:var(--ink-2);font-weight:500}
   </div>
 
   <aside id="inspector">
+    <div id="regions-bar"></div>
     <div id="region-panel" hidden></div>
     <div id="single-inspector">
     <div class="insp-head">
@@ -316,6 +347,12 @@ footer b{color:var(--ink-2);font-weight:500}
   <span style="margin-left:auto" class="mono">Tessera</span>
 </footer>
 
+<div class="modal" id="compare-modal"><div class="card">
+  <button class="close" id="compare-close" aria-label="Close">✕</button>
+  <h2>Compare regions</h2>
+  <div id="compare-body"></div>
+</div></div>
+
 <script>
 const DATA = __TESSERA_DATA__;
 
@@ -348,7 +385,7 @@ Object.keys(DATA.markers).forEach(g=>og.appendChild(new Option(g,'g:'+g)));
 sel.appendChild(og);
 
 let state={emb:'spatial',color:'lineage',k:1,tx:0,ty:0,sel:null,hover:null,off:new Set(),
-  mode:'pan',lasso:[],selection:new Set()};
+  mode:'pan',lasso:[],selection:new Set(),regions:[]};
 
 const canvas=document.getElementById('scope'),ctx=canvas.getContext('2d');
 let W=0,H=0,dpr=1,pad=44,_lastW=-1,_lastH=-1;
@@ -417,7 +454,7 @@ function draw(){
     ctx.globalAlpha=hasSel?(state.selection.has(i)?1:.1):baseA;ctx.fill();ctx.globalAlpha=1;}
   // hover ring
   if(state.hover!=null&&isOn(state.hover)){const [x,y]=project(state.hover);
-    ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.stroke();}
+    ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle=css('--scope-strong');ctx.lineWidth=1.5;ctx.stroke();}
   // single-cell selection ring
   if(state.sel!=null&&!hasSel){const [x,y]=project(state.sel);
     ctx.beginPath();ctx.arc(x,y,r+2,0,7);ctx.fillStyle=colorFor(state.sel);ctx.fill();
@@ -524,18 +561,23 @@ function renderRegion(){
       `<span style="color:${col}">${arrow}${Math.abs(d).toFixed(0)}%</span></span></div>`;}).join('');
   // depth
   const umis=median(idx.map(i=>DATA.umis[i])),peaks=median(idx.map(i=>DATA.npk[i]));
-  // top genes: sum of per-cell top gene values across the region
-  const g={};for(const i of idx)for(const [name,val] of DATA.top[i])g[name]=(g[name]||0)+val;
-  const topg=Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const gmax=topg.length?topg[0][1]:1;
-  const bars=topg.map(([name,v])=>`<div class="bar"><span class="g" title="${name}">${name}</span>`+
-    `<span class="track"><span class="fill" style="width:${Math.max(3,v/gmax*100)}%;background:var(--accent)"></span></span></div>`).join('');
+  // differential expression: region vs rest (Wilcoxon rank-sum over the gene panel)
+  const de=deTest(idx, null);
+  const up=de.slice(0,8), down=de.slice(-8).reverse();
+  const deRows=arr=>arr.map(d=>{const col=d.lfc>0?'#2a8f86':'#C2543A';
+    return `<div class="r"><span class="g" title="${d.gene}">${d.gene}</span>`+
+      `<span class="lfc" style="color:${col}">${d.lfc>0?'+':''}${d.lfc.toFixed(2)}</span>`+
+      `<span class="p">p=${fmtP(d.p)}</span></div>`;}).join('');
 
   rp.innerHTML=`
     <div class="insp-head">
       <span class="cid">${idx.length.toLocaleString()} cells</span>
       <span class="chip">${pct}% of tissue</span>
       <button class="clearbtn" id="region-clear">Clear</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:9px">
+      <button class="rbtn" id="region-save">Save region</button>
+      <button class="rbtn" id="region-copy">Copy cell IDs</button>
     </div>
     <section class="blk"><span class="eyebrow">Composition</span>
       <div class="legend-list">${comp}</div></section>
@@ -546,10 +588,120 @@ function renderRegion(){
         <div class="stat"><div class="num">${Math.round(umis).toLocaleString()}</div><div class="lab">RNA UMIs</div></div>
         <div class="stat"><div class="num">${Math.round(peaks).toLocaleString()}</div><div class="lab">ATAC peaks</div></div>
       </div></section>
-    <section class="blk"><span class="eyebrow">Top genes in region</span>
-      <div class="bars">${bars}</div></section>`;
+    <section class="blk"><span class="eyebrow">Differential expression · region vs rest</span>
+      <div class="de">${deRows(up)}<div style="height:7px"></div>${deRows(down)}</div>
+      <div class="mcap">log2 fold-change · Wilcoxon rank-sum over ${DATA.deg_genes?DATA.deg_genes.length:0} genes</div></section>`;
   document.getElementById('region-clear').onclick=()=>{state.selection.clear();renderRegion();draw();};
+  document.getElementById('region-save').onclick=saveRegion;
+  document.getElementById('region-copy').onclick=()=>copyIds(idx);
 }
+
+// ---- differential expression (Wilcoxon rank-sum on the embedded gene panel) ----
+function _normCDF(z){const t=1/(1+0.2316419*Math.abs(z));
+  const d=0.3989423*Math.exp(-z*z/2);
+  let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return z>0?1-p:p;}
+function fmtP(p){if(p===0)return '0';if(p<1e-4)return p.toExponential(0);return p.toFixed(p<0.01?4:3);}
+function _cpm(gene,i){const c=DATA.deg[gene][i];return c/(DATA.umis[i]||1)*1e4;}
+function _rankAvg(vals){ // returns ranks (average ties), input array of {v,k}
+  const idx=vals.map((v,i)=>i).sort((a,b)=>vals[a]-vals[b]);
+  const ranks=new Array(vals.length);
+  let i=0;while(i<idx.length){let j=i;while(j+1<idx.length&&vals[idx[j+1]]===vals[idx[i]])j++;
+    const r=(i+j)/2+1;for(let k=i;k<=j;k++)ranks[idx[k]]=r;i=j+1;}
+  return ranks;}
+function deTest(groupIdx, otherIdx){
+  if(!DATA.deg)return [];
+  const gset=new Set(groupIdx);
+  const bg = otherIdx!==null ? otherIdx : (()=>{const a=[];for(let i=0;i<n;i++)if(!gset.has(i))a.push(i);return a;})();
+  const n1=groupIdx.length, n2=bg.length;
+  if(n1<3||n2<3)return [];
+  const mu=n1*n2/2, sigma=Math.sqrt(n1*n2*(n1+n2+1)/12);
+  const out=[];
+  for(const gene of DATA.deg_genes){
+    const gv=DATA.deg[gene];
+    const all=new Array(n1+n2); let mg=0,mr=0;
+    for(let a=0;a<n1;a++){const i=groupIdx[a];const c=gv[i]/(DATA.umis[i]||1)*1e4;all[a]=c;mg+=c;}
+    for(let b=0;b<n2;b++){const i=bg[b];const c=gv[i]/(DATA.umis[i]||1)*1e4;all[n1+b]=c;mr+=c;}
+    mg/=n1;mr/=n2;
+    const ranks=_rankAvg(all);let R1=0;for(let a=0;a<n1;a++)R1+=ranks[a];
+    const U=R1-n1*(n1+1)/2;const z=(U-mu)/sigma;
+    const p=Math.min(1,2*(1-_normCDF(Math.abs(z))));
+    const lfc=Math.log2((mg+1)/(mr+1));
+    out.push({gene,lfc,p});
+  }
+  return out.sort((a,b)=>b.lfc-a.lfc);
+}
+
+// ---- saved regions + compare + export ----
+const REGION_COLORS=['#17C2D4','#F2C230','#E36FB0','#8B7CF5','#59D46A','#FF8A5B','#4FA8DE','#F25C54'];
+function saveRegion(){
+  if(state.selection.size===0)return;
+  const dflt='Region '+(state.regions.length+1);
+  const name=(prompt('Name this region:',dflt)||dflt).trim();
+  const color=REGION_COLORS[state.regions.length%REGION_COLORS.length];
+  state.regions.push({id:Date.now(),name,color,idx:[...state.selection]});
+  renderRegionsBar();
+}
+function renderRegionsBar(){
+  const bar=document.getElementById('regions-bar');
+  if(state.regions.length===0){bar.style.display='none';bar.innerHTML='';return;}
+  bar.style.display='flex';
+  bar.innerHTML='<span class="eyebrow">Saved</span>'+state.regions.map(rg=>
+    `<span class="rchip" data-id="${rg.id}"><span class="dot" style="background:${rg.color}"></span>`+
+    `${rg.name} <span class="n" style="color:var(--muted)">${rg.idx.length}</span>`+
+    `<span class="x" data-del="${rg.id}">✕</span></span>`).join('')+
+    (state.regions.length>=2?'<button class="rbtn" id="compare-btn">Compare</button>':'');
+  bar.querySelectorAll('.rchip').forEach(ch=>ch.onclick=e=>{
+    if(e.target.dataset.del)return;
+    const rg=state.regions.find(r=>r.id==ch.dataset.id);
+    state.selection=new Set(rg.idx);state.sel=null;renderRegion();draw();});
+  bar.querySelectorAll('.x').forEach(x=>x.onclick=e=>{e.stopPropagation();
+    state.regions=state.regions.filter(r=>r.id!=x.dataset.del);renderRegionsBar();});
+  const cb=document.getElementById('compare-btn');if(cb)cb.onclick=openCompare;
+}
+async function copyIds(idx){
+  const ids=idx.map(i=>DATA.ids[i]).join('\n');
+  try{await navigator.clipboard.writeText(ids);
+    const b=document.getElementById('region-copy');if(b){const t=b.textContent;b.textContent='Copied '+idx.length+' IDs';setTimeout(()=>b.textContent=t,1500);}
+  }catch(e){
+    const w=window.open('','_blank');
+    if(w){w.document.write('<pre>'+ids+'</pre>');}
+    else{prompt('Copy the cell IDs:',ids);}
+  }
+}
+function lineagePct(idx,lin){let k=0;for(const i of idx)if(LINEAGE[cats[DATA.ct[i]]]===lin)k++;return 100*k/idx.length;}
+function openCompare(){
+  const modal=document.getElementById('compare-modal'),body=document.getElementById('compare-body');
+  const regs=state.regions;
+  const metrics=[
+    ['Cells',rg=>rg.idx.length.toLocaleString()],
+    ['% Tumour',rg=>lineagePct(rg.idx,'Tumour').toFixed(0)+'%'],
+    ['% T / NK',rg=>lineagePct(rg.idx,'T / NK').toFixed(0)+'%'],
+    ['% Myeloid',rg=>lineagePct(rg.idx,'Myeloid').toFixed(0)+'%'],
+    ['Nuclear area (px)',rg=>{const v=selMean('area',DATA.morph,rg.idx);return v?Math.round(v):'—';}],
+    ['N:C ratio',rg=>{const v=selMean('nc_ratio',DATA.cellmorph,rg.idx);return v?v.toFixed(2):'—';}],
+    ['DNA (integ.)',rg=>{const v=selMean('integrated_intensity',DATA.morph,rg.idx);return v?Math.round(v).toLocaleString():'—';}],
+    ['Median RNA UMIs',rg=>Math.round(median(rg.idx.map(i=>DATA.umis[i]))).toLocaleString()],
+    ['Median ATAC peaks',rg=>Math.round(median(rg.idx.map(i=>DATA.npk[i]))).toLocaleString()],
+  ];
+  let html='<table class="ctable"><thead><tr><th>Metric</th>'+
+    regs.map(rg=>`<th class="num"><span class="rdot" style="background:${rg.color}"></span>${rg.name}</th>`).join('')+
+    '</tr></thead><tbody>'+
+    metrics.map(([lab,fn])=>`<tr><td>${lab}</td>`+regs.map(rg=>`<td class="num">${fn(rg)}</td>`).join('')+'</tr>').join('')+
+    '</tbody></table>';
+  if(regs.length===2){
+    const de=deTest(regs[0].idx,regs[1].idx);
+    const up=de.slice(0,8),down=de.slice(-8).reverse();
+    const row=d=>{const col=d.lfc>0?regs[0].color:regs[1].color;
+      return `<div class="r"><span class="g">${d.gene}</span><span class="lfc" style="color:${col}">${d.lfc>0?'+':''}${d.lfc.toFixed(2)}</span><span class="p">p=${fmtP(d.p)}</span></div>`;};
+    html+=`<h2 style="margin-top:18px">Differential expression · ${regs[0].name} vs ${regs[1].name}</h2>`+
+      `<div class="de" style="max-width:420px">${up.map(row).join('')}<div style="height:7px"></div>${down.map(row).join('')}</div>`+
+      `<div class="mcap">log2FC (+ = up in ${regs[0].name}) · Wilcoxon over ${DATA.deg_genes.length} genes</div>`;
+  }
+  body.innerHTML=html;modal.classList.add('open');
+}
+document.getElementById('compare-close').onclick=()=>document.getElementById('compare-modal').classList.remove('open');
+document.getElementById('compare-modal').onclick=e=>{if(e.target.id==='compare-modal')e.currentTarget.classList.remove('open');};
 
 // theme
 const root=document.documentElement;
