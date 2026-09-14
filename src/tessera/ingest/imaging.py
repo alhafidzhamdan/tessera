@@ -111,6 +111,21 @@ def synthesize_nuclear_image(
 
     crops = cut_crops(stack, centroids=list(zip(ypx, xpx)), size=crop_size)
     _attach(paired, ma, cma, crops, chan, stain, crops_path, "synthetic", px_per_um)
+
+    # a registered tissue overview (pseudo-H&E) for the viewer's image underlay
+    nrm = nuc_img.astype(np.float32) / 255.0
+    mrm = (mem_img.astype(np.float32) / 255.0) if with_membrane else np.zeros_like(nrm)
+    hema = np.array([80, 45, 135]) / 255.0   # nuclei -> haematoxylin (purple)
+    eos = np.array([240, 150, 190]) / 255.0  # cytoplasm -> eosin (pink)
+    he = np.ones((*nuc_img.shape, 3), np.float32)
+    he *= (1 - mrm[..., None] * (1 - eos))
+    he *= (1 - nrm[..., None] * (1 - hema))
+    he = np.clip(he * 255, 0, 255).astype(np.uint8)
+    step = max(1, int(np.ceil(max(he.shape[:2]) / 1100)))
+    a = paired.adata
+    a.uns["tissue_image"] = np.ascontiguousarray(he[::step, ::step])
+    a.uns["tissue_fy"] = True  # synthetic image row increases with spatial y
+
     if return_image:
         return paired, nuc_img, (mem_img if with_membrane else None)
     return paired

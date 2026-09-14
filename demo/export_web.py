@@ -228,6 +228,21 @@ def build_payload(p):
         data["crop_channels"] = list(p.crops.channel_names)
         print(f"crop atlas: {rows}x{cols} @ {cs}px RGB, {len(b64)/1e6:.2f} MB base64")
 
+    # registered tissue overview (pseudo-H&E) for the viewer's image underlay
+    if "tissue_image" in a.uns:
+        import base64
+        import io
+
+        from PIL import Image
+
+        arr = np.asarray(a.uns["tissue_image"]).astype(np.uint8)
+        buf = io.BytesIO()
+        Image.fromarray(arr).save(buf, format="PNG", optimize=True)
+        data["tissue"] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        data["tissue_fy"] = bool(a.uns.get("tissue_fy", False))
+        data["tissue_opacity"] = 0.65
+        print(f"tissue overview: {arr.shape}, {len(data['tissue'])/1e6:.2f} MB")
+
     return data
 
 

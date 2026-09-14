@@ -72,8 +72,9 @@ attach_morphology_from_mask(p, nuclear_image="dapi.tif", labels="mask.tif", um_p
 - **Baked page:** `python demo/export_web.py mydata.tessera web/viewer_template.html out/index.html`
 
 The web viewer does spatial/UMAP, colour by lineage / subtype / any gene / depth,
-a cell table, lasso region stats + differential expression, saved regions, and
-direct A/B compare.
+a cell table, lasso region stats + differential expression, saved regions,
+direct A/B compare, and a **tissue-image (H&E/DAPI) underlay** aligned to the
+spatial map (load a downsampled overview, then opacity + offset/scale/rotate/flip).
 
 ## Roadmap
 
@@ -91,6 +92,8 @@ direct A/B compare.
 - [x] **Drop-a-file web app** (`web/viewer_app.html`) — generic hosted viewer;
       drop an `.h5ad` (parsed in-browser via jsfive, with any-gene search) or a
       Tessera bundle JSON — no re-export, nothing uploaded to a server
+- [x] **Tissue-image underlay** — register an H&E/DAPI overview under the spatial
+      nuclei (opacity + offset/scale/rotate/flip) to check slide-tags alignment
 - [ ] **Phase 3** — morphology ↔ omics association statistics
 - [ ] **Phase 4** — joint embedding
 - [ ] **Phase 5** — cross-modal prediction

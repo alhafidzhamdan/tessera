@@ -233,6 +233,25 @@ section.blk > .eyebrow{display:block;margin-bottom:8px}
 .mcap{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;
   text-transform:uppercase;color:var(--muted);margin-top:9px}
 #stain-lab{color:var(--accent);font-weight:500}
+/* tissue image underlay panel */
+#tissue-panel{position:absolute;right:14px;bottom:14px;display:none;width:232px;
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  box-shadow:var(--shadow);padding:12px 13px;z-index:6}
+#tissue-panel.open{display:block}
+#tissue-panel .tp-title{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+#tissue-panel label.row{display:flex;align-items:center;justify-content:space-between;
+  gap:8px;font-size:11.5px;color:var(--ink-2);margin:6px 0}
+#tissue-panel input[type=range]{flex:1;accent-color:var(--accent)}
+#tissue-panel .tp-btn{display:inline-block;cursor:pointer;font-size:11.5px;color:var(--accent);
+  border:1px solid var(--accent);border-radius:7px;padding:4px 10px;text-align:center}
+#tissue-panel .tp-btn:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+#tissue-panel .tp-row{display:flex;gap:8px;margin-top:4px}
+#tissue-panel .tp-mini{all:unset;cursor:pointer;font-size:11px;color:var(--ink-2);
+  border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+#tissue-panel .tp-mini.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#tissue-panel .tp-mini:hover{color:var(--ink)}
+#tissue-panel .tp-hint{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4}
 footer{padding:8px 18px;border-top:1px solid var(--border);background:var(--panel);
   font-size:11px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
 footer b{color:var(--ink-2);font-weight:500}
@@ -265,6 +284,7 @@ footer b{color:var(--ink-2);font-weight:500}
       <button id="mode-lasso" aria-pressed="false">Lasso</button>
     </div>
     <button class="rbtn" id="ab-toggle">Compare A/B</button>
+    <button class="rbtn" id="tissue-toggle">Tissue image</button>
     <div class="field">
       <label for="colorby">Colour by</label>
       <select id="colorby"></select>
@@ -295,6 +315,26 @@ footer b{color:var(--ink-2);font-weight:500}
       <div id="cbscale"><span id="cbmin">0</span><span id="cbmax">1</span></div></div>
     <div class="overlay mono" id="hint">scroll to zoom · drag to pan · click a nucleus</div>
     <div id="tooltip"></div>
+    <div id="tissue-panel">
+      <div class="tp-title">Tissue image · spatial</div>
+      <label class="tp-btn" for="tissue-file">Load H&amp;E / tissue image…</label>
+      <input id="tissue-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      <label class="row">Opacity <input id="tp-op" type="range" min="0" max="100" value="65"></label>
+      <label class="row">Offset X <input id="tp-ox" type="range" min="-100" max="100" value="0"></label>
+      <label class="row">Offset Y <input id="tp-oy" type="range" min="-100" max="100" value="0"></label>
+      <label class="row">Scale <input id="tp-sc" type="range" min="50" max="200" value="100"></label>
+      <label class="row">Rotate <input id="tp-rot" type="range" min="-180" max="180" value="0"></label>
+      <div class="tp-row">
+        <button class="tp-mini" id="tp-show">Shown</button>
+        <button class="tp-mini" id="tp-below">Below</button>
+        <button class="tp-mini" id="tp-fx">Flip X</button>
+        <button class="tp-mini" id="tp-fy">Flip Y</button>
+      </div>
+      <div class="tp-row"><button class="tp-mini" id="tp-reset">Reset align</button>
+        <button class="tp-mini" id="tp-remove">Remove</button></div>
+      <div class="tp-hint">Registered underlay for the spatial map. Use a downsampled
+        H&amp;E/DAPI overview (PNG/JPEG); align to the nuclei with the sliders.</div>
+    </div>
   </div>
 
   <aside id="inspector">
@@ -418,6 +458,32 @@ function project(i){const e=EMB[state.emb];const size=Math.min(W,H);
   let px=ox+pad+e.x[i]*(size-2*pad);
   let py=oy+pad+(e.flipY?(1-e.y[i]):e.y[i])*(size-2*pad);
   return [px*state.k+state.tx,py*state.k+state.ty];}
+// screen position of an arbitrary spatial (x,y) — mirrors project() for spatial
+function spatialToScreen(sx,sy){const size=Math.min(W,H),ox=(W-size)/2,oy=(H-size)/2;
+  const nx=(sx-SX.mn)/((SX.mx-SX.mn)||1), ny=(sy-SY.mn)/((SY.mx-SY.mn)||1);
+  const px=ox+pad+nx*(size-2*pad), py=oy+pad+(1-ny)*(size-2*pad);
+  return [px*state.k+state.tx, py*state.k+state.ty];}
+
+// tissue image underlay (spatial view only)
+let tissue={el:null,on:true,below:true,opacity:.65,ox:0,oy:0,scale:1,rot:0,fx:false,fy:false};
+function drawTissue(){
+  if(!tissue.el||!tissue.on||state.emb!=='spatial')return;
+  const spanx=(SX.mx-SX.mn)||1, spany=(SY.mx-SY.mn)||1;
+  const cx=(SX.mn+SX.mx)/2+tissue.ox*spanx/100, cy=(SY.mn+SY.mx)/2+tissue.oy*spany/100;
+  const hx=spanx/2*tissue.scale, hy=spany/2*tissue.scale;
+  const th=tissue.rot*Math.PI/180, ct=Math.cos(th), st=Math.sin(th);
+  let rx=hx*ct, ry=hx*st, ux=-hy*st, uy=hy*ct;
+  if(tissue.fx){rx=-rx;ry=-ry;} if(tissue.fy){ux=-ux;uy=-uy;}
+  const A=spatialToScreen(cx-rx+ux, cy-ry+uy);   // image (0,0)
+  const B=spatialToScreen(cx+rx+ux, cy+ry+uy);   // image (W,0)
+  const C=spatialToScreen(cx-rx-ux, cy-ry-uy);   // image (0,H)
+  const iw=tissue.el.naturalWidth||1, ih=tissue.el.naturalHeight||1;
+  ctx.save();
+  ctx.setTransform(dpr*(B[0]-A[0])/iw, dpr*(B[1]-A[1])/iw, dpr*(C[0]-A[0])/ih, dpr*(C[1]-A[1])/ih, dpr*A[0], dpr*A[1]);
+  ctx.globalAlpha=tissue.opacity; ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(tissue.el,0,0);
+  ctx.restore(); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.globalAlpha=1;
+}
 
 // colour value per cell
 function colorFor(i){
@@ -450,6 +516,7 @@ function isOn(i){const ct=cats[DATA.ct[i]];
 
 function draw(){
   ctx.clearRect(0,0,W,H);
+  if(tissue.below)drawTissue();
   // faint grid
   ctx.strokeStyle=css('--scope-grid');ctx.lineWidth=1;
   const step=Math.max(60,80*state.k);
@@ -485,6 +552,7 @@ function draw(){
     for(let i=1;i<state.lasso.length;i++)ctx.lineTo(state.lasso[i][0],state.lasso[i][1]);
     ctx.closePath();ctx.fillStyle='rgba(23,194,212,.10)';ctx.fill();
     ctx.strokeStyle=css('--accent');ctx.lineWidth=1.6;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);}
+  if(!tissue.below)drawTissue();
 }
 
 function nearest(mx,my){let best=-1,bd=14*14;
@@ -843,6 +911,39 @@ function renderAB(){
 }
 document.getElementById('ab-toggle').onclick=toggleAB;
 
+// ---- tissue image underlay controls ----
+function loadTissueSrc(src){const el=new Image();
+  el.onload=()=>{tissue.el=el;tissue.on=true;syncTissueUI();draw();};
+  el.onerror=()=>{document.getElementById('hint').textContent='could not load image';};
+  el.src=src;}
+function syncTissueUI(){
+  document.getElementById('tp-show').classList.toggle('on',tissue.on);
+  document.getElementById('tp-show').textContent=tissue.on?'Shown':'Hidden';
+  document.getElementById('tp-below').classList.toggle('on',tissue.below);
+  document.getElementById('tp-below').textContent=tissue.below?'Below':'Above';
+  document.getElementById('tp-fx').classList.toggle('on',tissue.fx);
+  document.getElementById('tp-fy').classList.toggle('on',tissue.fy);
+  document.getElementById('tissue-toggle').classList.toggle('on',
+    document.getElementById('tissue-panel').classList.contains('open'));
+}
+document.getElementById('tissue-toggle').onclick=()=>{
+  const p=document.getElementById('tissue-panel');p.classList.toggle('open');
+  if(p.classList.contains('open')&&state.emb!=='spatial')setEmb('spatial');syncTissueUI();};
+document.getElementById('tissue-file').addEventListener('change',e=>{
+  const f=e.target.files[0];if(f)loadTissueSrc(URL.createObjectURL(f));});
+const T=(id,fn)=>document.getElementById(id).addEventListener('input',e=>{fn(+e.target.value);draw();});
+T('tp-op',v=>tissue.opacity=v/100);
+T('tp-ox',v=>tissue.ox=v);T('tp-oy',v=>tissue.oy=v);
+T('tp-sc',v=>tissue.scale=v/100);T('tp-rot',v=>tissue.rot=v);
+document.getElementById('tp-show').onclick=()=>{tissue.on=!tissue.on;syncTissueUI();draw();};
+document.getElementById('tp-below').onclick=()=>{tissue.below=!tissue.below;syncTissueUI();draw();};
+document.getElementById('tp-fx').onclick=()=>{tissue.fx=!tissue.fx;syncTissueUI();draw();};
+document.getElementById('tp-fy').onclick=()=>{tissue.fy=!tissue.fy;syncTissueUI();draw();};
+document.getElementById('tp-reset').onclick=()=>{Object.assign(tissue,{ox:0,oy:0,scale:1,rot:0,fx:false,fy:false});
+  ['tp-ox','tp-oy'].forEach(i=>document.getElementById(i).value=0);
+  document.getElementById('tp-sc').value=100;document.getElementById('tp-rot').value=0;syncTissueUI();draw();};
+document.getElementById('tp-remove').onclick=()=>{tissue.el=null;draw();};
+
 // theme
 const root=document.documentElement;
 function applyTheme(t){if(t)root.setAttribute('data-theme',t);draw();}
@@ -1043,4 +1144,11 @@ select(seed);
 setMode('pan');
 setTab('explore');
 if(window.__PRE_EXPR){wireExpr(window.__PRE_EXPR);}else{loadExpr();}
+if(DATA.tissue){
+  if(DATA.tissue_fy!==undefined)tissue.fy=!!DATA.tissue_fy;
+  if(DATA.tissue_opacity!==undefined){tissue.opacity=DATA.tissue_opacity;
+    document.getElementById('tp-op').value=Math.round(DATA.tissue_opacity*100);}
+  loadTissueSrc(DATA.tissue);
+}
+syncTissueUI();
 </script>
