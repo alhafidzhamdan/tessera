@@ -302,6 +302,8 @@ footer b{color:var(--ink-2);font-weight:500}
     <div class="field"><label for="tlineage">Lineage</label><select id="tlineage"></select></div>
     <span id="tcount" class="eyebrow"></span>
   </div>
+  <button class="icon-btn" id="shot" title="Screenshot the whole view" aria-label="Screenshot view">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.6a1 1 0 0 1 .85-.4h5.3a1 1 0 0 1 .85.4L17.5 6H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" transform="translate(0 0)"/><circle cx="12" cy="12.5" r="3.3"/></svg></button>
   <button class="icon-btn" id="theme" title="Toggle theme" aria-label="Toggle theme">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 20.5a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
 </header>
@@ -402,6 +404,17 @@ footer b{color:var(--ink-2);font-weight:500}
   <button class="close" id="compare-close" aria-label="Close">✕</button>
   <h2>Compare regions</h2>
   <div id="compare-body"></div>
+</div></div>
+
+<div class="modal" id="shot-modal"><div class="card">
+  <button class="close" id="shot-close" aria-label="Close">✕</button>
+  <h2>Screenshot</h2>
+  <div id="shot-actions" style="display:flex;gap:8px;align-items:center;margin:6px 0 10px">
+    <button class="rbtn" id="shot-dl">Download PNG</button>
+    <button class="rbtn" id="shot-copy">Copy to clipboard</button>
+    <span class="mcap" id="shot-note">or right-click the image → “Save image as…”</span>
+  </div>
+  <img id="shot-img" alt="view screenshot" style="max-width:100%;border:1px solid var(--border);border-radius:8px">
 </div></div>
 
 <script>
@@ -854,6 +867,74 @@ function openCompare(){
 }
 document.getElementById('compare-close').onclick=()=>document.getElementById('compare-modal').classList.remove('open');
 document.getElementById('compare-modal').onclick=e=>{if(e.target.id==='compare-modal')e.currentTarget.classList.remove('open');};
+
+// ---- screenshot the plot view (composited: canvas + legend/colourbar) ----
+function _rr(o,x,y,w,h,r){o.beginPath();o.moveTo(x+r,y);o.arcTo(x+w,y,x+w,y+h,r);
+  o.arcTo(x+w,y+h,x,y+h,r);o.arcTo(x,y+h,x,y,r);o.arcTo(x,y,x+w,y,r);o.closePath();}
+function drawExportLegend(o){
+  const categorical=(state.color==='lineage'||state.color==='subtype');
+  const pad=10,x=14,y=14;
+  if(categorical){
+    const cc=new Array(cats.length).fill(0);for(let i=0;i<n;i++)cc[DATA.ct[i]]++;
+    const rows=[];
+    if(state.color==='lineage'){const lc=lineageColors();
+      LINEAGE_ORDER.forEach(L=>{let t=0;cats.forEach((c,ci)=>{if(LINEAGE[c]===L)t+=cc[ci];});rows.push([L,lc[L],t]);});}
+    else LINEAGE_ORDER.forEach(L=>cats.forEach((c,ci)=>{if(LINEAGE[c]===L)rows.push([c,SUBTYPE_COLOR[c],cc[ci]]);}));
+    const rh=17,w=186,h=pad*2+14+rows.length*rh;
+    o.fillStyle=css('--panel');o.strokeStyle=css('--border');o.lineWidth=1;_rr(o,x,y,w,h,10);o.fill();o.stroke();
+    o.fillStyle=css('--muted');o.font='10px "IBM Plex Mono",monospace';
+    o.fillText(state.color==='lineage'?'LINEAGE':'CELL SUBTYPE',x+pad,y+pad+6);
+    let yy=y+pad+18;
+    for(const [name,col,cnt] of rows){o.fillStyle=col;_rr(o,x+pad,yy+2,10,10,2);o.fill();
+      o.fillStyle=css('--ink');o.font='12px "IBM Plex Sans",sans-serif';o.textAlign='left';o.fillText(name,x+pad+16,yy+11);
+      o.fillStyle=css('--muted');o.font='10px "IBM Plex Mono",monospace';o.textAlign='right';o.fillText(String(cnt),x+w-pad,yy+11);
+      yy+=rh;}
+    o.textAlign='left';
+  } else if(cont&&cont.label){
+    const w=176,h=56;o.fillStyle=css('--panel');o.strokeStyle=css('--border');o.lineWidth=1;_rr(o,x,y,w,h,10);o.fill();o.stroke();
+    o.fillStyle=css('--muted');o.font='10px "IBM Plex Mono",monospace';o.textAlign='left';o.fillText(cont.label.toUpperCase().slice(0,26),x+pad,y+pad+6);
+    const gx=x+pad,gy=y+pad+14,gw=w-2*pad,gh=10;const grad=o.createLinearGradient(gx,0,gx+gw,0);
+    VIRIDIS.forEach((c,i)=>grad.addColorStop(i/5,`rgb(${c[0]},${c[1]},${c[2]})`));
+    o.fillStyle=grad;o.fillRect(gx,gy,gw,gh);
+    o.fillStyle=css('--muted');o.fillText(String(Math.round(cont.min)),gx,gy+gh+12);
+    o.textAlign='right';o.fillText(String(Math.round(cont.max)),gx+gw,gy+gh+12);o.textAlign='left';
+  }
+  // caption bottom-left
+  o.fillStyle=css('--scope-ink');o.font='11px "IBM Plex Mono",monospace';
+  o.fillText(((DATA.source||'Tessera')+' · '+state.emb).slice(0,60),14,H-12);
+}
+function takeShot(){
+  const out=document.createElement('canvas');out.width=canvas.width;out.height=canvas.height;
+  const o=out.getContext('2d');
+  o.fillStyle=css('--scope');o.fillRect(0,0,out.width,out.height);
+  o.drawImage(canvas,0,0);
+  o.save();o.scale(dpr,dpr);drawExportLegend(o);o.restore();
+  window.__lastShot=out;
+  document.getElementById('shot-img').src=out.toDataURL('image/png');
+  document.getElementById('shot-note').textContent='or right-click the image → “Save image as…”';
+  document.getElementById('shot-modal').classList.add('open');
+}
+document.getElementById('shot').onclick=takeShot;
+function _shotBlob(){return new Promise(r=>window.__lastShot.toBlob(r,'image/png'));}
+document.getElementById('shot-dl').onclick=async()=>{
+  const btn=document.getElementById('shot-dl'),note=document.getElementById('shot-note');
+  const dl=(window.claude&&claude.use)?await claude.use('downloads'):null;
+  const blob=await _shotBlob();
+  if(!dl){note.textContent='download not available here — right-click the image → “Save image as…”';return;}
+  try{const res=await dl.save({filename:'tessera-view.png',data:blob});
+    if(res.status==='saved'){btn.textContent='Saved ✓';setTimeout(()=>btn.textContent='Download PNG',1600);}}
+  catch(e){note.textContent=(e&&e.code==='declined')?'download cancelled':'download unavailable — right-click the image to save';}
+};
+document.getElementById('shot-close').onclick=()=>document.getElementById('shot-modal').classList.remove('open');
+document.getElementById('shot-modal').onclick=e=>{if(e.target.id==='shot-modal')e.currentTarget.classList.remove('open');};
+document.getElementById('shot-copy').onclick=async()=>{
+  const b=document.getElementById('shot-copy');
+  try{
+    const blob=await new Promise(r=>window.__lastShot.toBlob(r,'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy to clipboard',1500);
+  }catch(e){document.getElementById('shot-note').textContent='clipboard blocked — right-click the image → Save image as…';}
+};
 
 // ---- direct A / B compare (two lassos) ----
 const AB_A='#17C2D4', AB_B='#F2A03D';
