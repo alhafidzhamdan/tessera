@@ -903,16 +903,37 @@ function drawExportLegend(o){
   o.fillStyle=css('--scope-ink');o.font='11px "IBM Plex Mono",monospace';
   o.fillText(((DATA.source||'Tessera')+' · '+state.emb).slice(0,60),14,H-12);
 }
-function takeShot(){
+function compositePlot(){  // fallback: plot canvas + redrawn legend only
   const out=document.createElement('canvas');out.width=canvas.width;out.height=canvas.height;
   const o=out.getContext('2d');
   o.fillStyle=css('--scope');o.fillRect(0,0,out.width,out.height);
   o.drawImage(canvas,0,0);
   o.save();o.scale(dpr,dpr);drawExportLegend(o);o.restore();
-  window.__lastShot=out;
-  document.getElementById('shot-img').src=out.toDataURL('image/png');
+  return out;
+}
+function _showShot(cv){
+  window.__lastShot=cv;
+  document.getElementById('shot-img').src=cv.toDataURL('image/png');
   document.getElementById('shot-note').textContent='or right-click the image → “Save image as…”';
   document.getElementById('shot-modal').classList.add('open');
+}
+function _ensureSnap(cb){
+  if(window.snapdom)return cb();
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/@zumer/snapdom@3.0.0/dist/snapdom.min.js';
+  s.onload=()=>cb();s.onerror=()=>cb(new Error('load failed'));document.body.appendChild(s);
+}
+function takeShot(){
+  const btn=document.getElementById('shot');btn.style.opacity='.5';
+  const done=()=>{btn.style.opacity='';};
+  _ensureSnap(async(err)=>{
+    if(!err&&window.snapdom){try{
+      const cv=await window.snapdom.toCanvas(document.body,
+        {scale:Math.min(2,window.devicePixelRatio||1),backgroundColor:css('--bg')||'#ffffff'});
+      _showShot(cv);done();return;
+    }catch(e){/* fall back to plot-only */}}
+    _showShot(compositePlot());done();
+  });
 }
 document.getElementById('shot').onclick=takeShot;
 function _shotBlob(){return new Promise(r=>window.__lastShot.toBlob(r,'image/png'));}
