@@ -927,16 +927,28 @@ function takeShot(){
   const btn=document.getElementById('shot');btn.style.opacity='.5';
   const done=()=>{btn.style.opacity='';};
   _ensureSnap(async(err)=>{
-    if(!err&&window.snapdom){try{
-      // toPng awaits image decode (toCanvas can race → blank), and uses the live
-      // theme's --bg so the shot matches light/dark exactly.
-      const img=await window.snapdom.toPng(document.body,
-        {scale:Math.min(2,window.devicePixelRatio||1),backgroundColor:css('--bg')||'#ffffff'});
-      if(img.decode)await img.decode();
-      const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
-      cv.getContext('2d').drawImage(img,0,0);
-      _showShot(cv);done();return;
-    }catch(e){/* fall back to plot-only */}}
+    if(!err&&window.snapdom){
+      // Freeze the CURRENT resolved theme tokens inline on <body> (the captured
+      // root). snapdom captures <body> and copies our @media(prefers-color-scheme)
+      // rule, which would otherwise re-fire against the viewer's OS setting and
+      // paint the wrong theme; inline vars on the captured root win for every
+      // descendant, so the shot always matches what's on screen.
+      const TOK=['--bg','--panel','--panel-2','--border','--ink','--ink-2','--muted',
+        '--accent','--accent-ink','--scope','--scope-grid','--scope-ink','--scope-strong',
+        '--tumour','--tnk','--myeloid','--plasma','--shadow'];
+      const b=document.body, saved=TOK.map(v=>[v,b.style.getPropertyValue(v)]);
+      TOK.forEach(v=>b.style.setProperty(v,css(v)));
+      try{
+        // toPng awaits image decode (toCanvas can race → blank).
+        const img=await window.snapdom.toPng(document.body,
+          {scale:Math.min(2,window.devicePixelRatio||1),backgroundColor:css('--bg')||'#ffffff'});
+        if(img.decode)await img.decode();
+        const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+        cv.getContext('2d').drawImage(img,0,0);
+        _showShot(cv);return;
+      }catch(e){/* fall back to plot-only */}
+      finally{saved.forEach(([v,val])=>val?b.style.setProperty(v,val):b.style.removeProperty(v));done();}
+    }
     _showShot(compositePlot());done();
   });
 }
