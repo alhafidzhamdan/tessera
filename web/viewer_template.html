@@ -411,6 +411,7 @@ footer b{color:var(--ink-2);font-weight:500}
   <h2>Screenshot</h2>
   <div id="shot-actions" style="display:flex;gap:8px;align-items:center;margin:6px 0 10px">
     <button class="rbtn" id="shot-dl">Download PNG</button>
+    <button class="rbtn" id="shot-pdf">Download PDF</button>
     <button class="rbtn" id="shot-copy">Copy to clipboard</button>
     <span class="mcap" id="shot-note">or right-click the image → “Save image as…”</span>
   </div>
@@ -965,6 +966,25 @@ document.getElementById('shot-dl').onclick=async()=>{
 };
 document.getElementById('shot-close').onclick=()=>document.getElementById('shot-modal').classList.remove('open');
 document.getElementById('shot-modal').onclick=e=>{if(e.target.id==='shot-modal')e.currentTarget.classList.remove('open');};
+function _loadScript(src,cb){const s=document.createElement('script');s.src=src;s.onload=()=>cb();s.onerror=()=>cb(new Error('load failed'));document.body.appendChild(s);}
+document.getElementById('shot-pdf').onclick=async()=>{
+  const btn=document.getElementById('shot-pdf'),note=document.getElementById('shot-note');
+  if(!window.__lastShot)return;
+  const build=async()=>{
+    if(!(window.jspdf&&window.jspdf.jsPDF)){note.textContent='could not load PDF library';return;}
+    const cv=window.__lastShot,w=cv.width,h=cv.height,mx=1600,s=Math.min(1,mx/w),pw=Math.round(w*s),ph=Math.round(h*s);
+    const doc=new window.jspdf.jsPDF({orientation:w>=h?'landscape':'portrait',unit:'pt',format:[pw,ph],compress:true});
+    doc.addImage(cv.toDataURL('image/png'),'PNG',0,0,pw,ph,undefined,'FAST');
+    const blob=doc.output('blob');
+    const dl=(window.claude&&claude.use)?await claude.use('downloads'):null;
+    if(!dl){note.textContent='download not available here — use Download PNG or right-click the image';return;}
+    try{const r=await dl.save({filename:'tessera-view.pdf',data:blob});
+      if(r.status==='saved'){btn.textContent='Saved ✓';setTimeout(()=>btn.textContent='Download PDF',1600);}}
+    catch(e){note.textContent=(e&&e.code==='declined')?'download cancelled':'PDF download unavailable here';}
+  };
+  if(window.jspdf&&window.jspdf.jsPDF)build();
+  else _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',(err)=>err?(note.textContent='could not load PDF library'):build());
+};
 document.getElementById('shot-copy').onclick=async()=>{
   const b=document.getElementById('shot-copy');
   try{
