@@ -928,8 +928,13 @@ function takeShot(){
   const done=()=>{btn.style.opacity='';};
   _ensureSnap(async(err)=>{
     if(!err&&window.snapdom){try{
-      const cv=await window.snapdom.toCanvas(document.body,
+      // toPng awaits image decode (toCanvas can race → blank), and uses the live
+      // theme's --bg so the shot matches light/dark exactly.
+      const img=await window.snapdom.toPng(document.body,
         {scale:Math.min(2,window.devicePixelRatio||1),backgroundColor:css('--bg')||'#ffffff'});
+      if(img.decode)await img.decode();
+      const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+      cv.getContext('2d').drawImage(img,0,0);
       _showShot(cv);done();return;
     }catch(e){/* fall back to plot-only */}}
     _showShot(compositePlot());done();
